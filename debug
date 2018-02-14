@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+arm-none-eabi-gdb -tui *.elf -x gdbcmd

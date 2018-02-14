@@ -1,0 +1,13 @@
+define rst
+	tb main
+	monitor reset halt
+	c
+end
+
+define ld
+	make
+	load
+	rst
+end
+
+target remote | openocd -c "gdb_port pipe; log_output openocd.log" -f openocd.cfg
