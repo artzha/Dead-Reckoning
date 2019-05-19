@@ -3,6 +3,7 @@
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/cm3/systick.h>
+#include "MPU.h"
 
 
 static void clock_setup(void)
@@ -66,48 +67,22 @@ static void i2c_setup(void)
 	i2c_peripheral_enable(I2C1);
 }
 
-void mpu_setup() {
-	uint8_t data[2] = { MPU_ADDR_PW_MGT_CFG, 0 };
-	i2c_transfer7(I2C1, MPU_ADDR, data, 2, data, 0);
-
-	data[0] = ACC_ADDR_CFG;
-	data[1] = 0b00011000;
-	i2c_transfer7(I2C1, MPU_ADDR, data, 2, data, 0);
-
-	data[0] = GYRO_ADDR_CFG;
-	data[1] = 0b00011000;
-	i2c_transfer7(I2C1, MPU_ADDR, data, 2, data, 0);
-}
-	
-void read_accelerometer (double* acc) {
-	uint8_t raw[6];
-	uint8_t addr[6] = { 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40 };
-	int i = 0;
-	while(i < 6) {
-		i2c_transfer7(I2C1, MPU_ADDR, addr+i, 1, raw+i, 1);
-		i++;
-	}
-
-	acc[0] = (int16_t)((int16_t)raw[0]<<8|raw[1]);
-	acc[1] = (int16_t)((int16_t)raw[2]<<8|raw[3]);
-	acc[2] = (int16_t)((int16_t)raw[4]<<8|raw[5]);
-
-	acc[0] = acc[0]/2048.0;
-	acc[1] = acc[1]/2048.0;
-	acc[2] = acc[2]/2048.0;
-}
-
 int main(void)
 {
 	clock_setup();
 	gpio_setup();
 	i2c_setup();
-	mpu_setup();
+
+	mpuSetup(I2C1);
 
 	double acc[3];
+	double gyro[3];
+	double mag[3];
 
 	while (1) {
-		read_accelerometer(acc);
+		readAccelerometer(I2C1, acc);
+		readGyroscope(I2C1, gyro);
+		readMagnetometer(I2C1, mag);
 		int i;
 		for (i = 0; i < 800000; i++)    /* Wait a bit. */
 		 __asm__("nop");

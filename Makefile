@@ -1,4 +1,4 @@
-PRJ_NAME   = Blink
+PRJ_NAME   = Position-Tracker
 CC         = arm-none-eabi-gcc
 SRCDIR     = src
 SRC        = $(wildcard $(SRCDIR)/*.c)
