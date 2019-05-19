@@ -1,85 +1,43 @@
 # Description
-This repository contains a simple example of a project using the [libopencm3](https://github.com/libopencm3/libopencm3) with th STM32F103x8 microcontroller.
+# Down the STM32 Bare Metal Rabbit Hole
 
-# Dependencies
+## Introduction
 
-* arm-none-eabi-gcc
-* arm-none-eabi-gdb
-* arm-none-eabi-newlib
-* openocd (>= 0.8.0)
-* make
-* gawk
+This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 Cortex M3 micro controller at the register level. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer and Kalman Filters. This computation will be run in parallel by multiple STM32's and accelerometers to create an additional layer of redundancy and discrepancies will be resolved using the Byzantine General's Algorithm.
 
-# How to compile and upload the examples
+Note: I decided to develop this project simply using predefined CMSIS registers to gain a better understanding of how to develop high efficiency and robust code for microproccesors.
 
-## Preparation
-Before compiling, make sure to initialize and update the libopencm3 git submodule:
-```
-$ git submodule init
-$ git submodule update
-```
+With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
-## Compile
-```
-$ make
-```
-You can change the default optimization level (-Og) through the OPT flag:
-```
-$ make clean
-$ make OPT=-O3
-```
+The following tools are used for these projects:
+* [ARM-GCC](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads) compiler toolchain.
+* [stm32flash](https://sourceforge.net/projects/stm32flash/) flash tool using the on-board STM32 serial bootloader over UART.
+* [st-link](https://github.com/texane/stlink) flash tool using an ST-LINK V2 USB programmer.
+* [Official STM32 CMSIS](http://www.st.com/en/embedded-software/stm32cube-mcu-packages.html) files as part of their STM32Cube MCU packages.
+* libopencm3 files for a non-optimized implementation of the project with libopencm3 
 
-## Upload / Flash:
-Before uploading/flashing/debugging for the first time select the debug adapter:
-```
-$ ./dbgcfg
-Please chose the debug interface:
-[0] ST-LINK/V2
-[1] ST-LINK/V2-1
-[2] JLINK
-[3] CMSIS-DAP
-Choice:
-```
-After that, your choice will be stored on a local ".interface" file. You can change it at any time by invoking the ```dbgcfg``` script again.
+### Development Hardware
 
-To flash the microcontroller:
-```
-$ make flash
-```
+All example projects are using a ["Blue Pill"][blue pill] board as the target hardware platform.
 
-## Clean output files:
-To clear only output files from the application code (src directory):
-```
-$ make clean
-```
-To clear all output files including the libopencm3:
-```
-$ make distclean
-```
+### Common Directories
 
-## Generate .bin file:
-```
-$ make bin
-```
+#### [CMSIS/](CMSIS)
 
-## Generate .hex file:
-```
-$ make hex
-```
+Contains the [Cortex CMSIS](https://developer.arm.com/embedded/cmsis) files needed to build the projects.  These files have been repackaged from the official [STM32 CMSIS](http://www.st.com/en/embedded-software/stm32cube-mcu-packages.html) files.
 
-# Debugging:
-You can debug with gdb you can invoke the ```debug``` script (tui mode) or invoke gdb directly:
-```
-$ arm-none-eabi-gdb *.elf -x gdbcmd
-```
+#### [template/](template)
 
-If you have [PyCortexMDebug](https://github.com/bnahill/PyCortexMDebug) installed you can invoke gdb with python:
-```
-$ arm-none-eabi-gdb *.elf -x pygdbcmd
-```
+The template directory contains the files necessary to start a new STM32F103 project.
 
-This will make inspecting microcontroller's registers and bit fields much more convenient.
+#### [gdb/](gdb)
+
+The gdb directory contains gbd command files used for debugging and flashing.
+
+[blue pill]: http://wiki.stm32duino.com/index.php?title=Blue_Pill
+
+#### Credits
+A large part of the original Makefile initialization was originally developed by getoffmyhack.
 
 # License
 The libopencm3 is licensed under the GNU Lesser General Public License version 3. All other files not within the libopencm3 directory are lincesed under the 3-Clause BSD license.
-# DeadReckoning
