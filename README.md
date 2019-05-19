@@ -82,3 +82,4 @@ This will make inspecting microcontroller's registers and bit fields much more c
 
 # License
 The libopencm3 is licensed under the GNU Lesser General Public License version 3. All other files not within the libopencm3 directory are lincesed under the 3-Clause BSD license.
+# DeadReckoning
