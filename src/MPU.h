@@ -29,10 +29,17 @@
 #define ACC_OUT_X_L			    0x3B
 #define ACC_OUT_X_H			    0x3C
 
-void mpuSetup(uint32_t I2C);
-void initMagnetomer(uint32_t I2C);
+typedef struct {
+    float *magCal, *gyroCal;
+    double magCalibration[3];  // x/y/z gyro calibration data stored here
+    double acc[3], gyro[3], mag[3];
+} MPU_Init;
+
+void mpuSetup(uint32_t I2C, double* magCalibration);
+void initMagnetometer(uint32_t I2C, double* magCalibration);
 void readAccelerometer(uint32_t I2C, double *acc);
 void readGyroscope(uint32_t I2C, double *gyro);
-void readMagnetometer(uint32_t I2C, double *mag);
+void readMagnetometer(uint32_t I2C, double *mag, double* magCalibration);
+void calibrateMPU9250(float *dest1, float *dest2);
 
 #endif

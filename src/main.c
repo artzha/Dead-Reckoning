@@ -5,7 +5,6 @@
 #include <libopencm3/cm3/systick.h>
 #include "MPU.h"
 
-
 static void clock_setup(void)
 {
 	rcc_clock_setup_in_hse_16mhz_out_72mhz();
@@ -73,16 +72,15 @@ int main(void)
 	gpio_setup();
 	i2c_setup();
 
-	mpuSetup(I2C1);
-
-	double acc[3];
-	double gyro[3];
-	double mag[3];
+	MPU_Init mpu;
+	
+	mpuSetup(I2C1, mpu.magCalibration);
 
 	while (1) {
-		readAccelerometer(I2C1, acc);
-		readGyroscope(I2C1, gyro);
-		readMagnetometer(I2C1, mag);
+		readAccelerometer(I2C1, mpu.acc);
+		readGyroscope(I2C1, mpu.gyro);
+		readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
+
 		int i;
 		for (i = 0; i < 800000; i++)    /* Wait a bit. */
 		 __asm__("nop");
