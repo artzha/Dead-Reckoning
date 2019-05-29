@@ -2,8 +2,11 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/gpio.h>
-#include <libopencm3/cm3/systick.h>
+#include <libopencm3/stm32/timer.h>
+#include <libopencm3/cm3/nvic.h>
 #include "MPU.h"
+
+volatile float update = 0;
 
 static void clock_setup(void)
 {
@@ -20,6 +23,32 @@ static void gpio_setup(void)
 	              GPIO_CNF_OUTPUT_PUSHPULL, GPIO6);
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
 	              GPIO_CNF_OUTPUT_PUSHPULL, GPIO7);
+}
+
+static void timer_setup(void)
+{
+	rcc_periph_clock_enable(RCC_TIM2);
+	/* Set timer start value. */
+	TIM_CNT(TIM2) = 1;
+
+	/* Set timer prescaler. 72MHz/1440 => 50000 counts per second. */
+	TIM_PSC(TIM2) = 1440;
+
+	/* End timer value. If this is reached an interrupt is generated. */
+	TIM_ARR(TIM2) = 25000;
+
+	/* Update interrupt enable. */
+	TIM_DIER(TIM2) |= TIM_DIER_UIE;
+
+	/* Start timer. */
+	TIM_CR1(TIM2) |= TIM_CR1_CEN;
+}
+
+static void nvic_setup(void)
+{
+	/* Without this the timer interrupt routine will never be called. */
+	nvic_enable_irq(NVIC_TIM2_IRQ);
+	nvic_set_priority(NVIC_TIM2_IRQ, 1);
 }
 
 static void i2c_setup(void)
@@ -66,24 +95,35 @@ static void i2c_setup(void)
 	i2c_peripheral_enable(I2C1);
 }
 
+void tim2_isr(void)
+{
+	/* Update Necessary Variables Here */
+	update+=1;
+	if (update > 1) update = 0;
+
+	TIM_SR(TIM2) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
+}
+
 int main(void)
 {
 	clock_setup();
 	gpio_setup();
 	i2c_setup();
+	nvic_setup();
+	timer_setup();
 
 	MPU_Init mpu;
 	
-	mpuSetup(I2C1, mpu.magCalibration);
+	mpuSetup(I2C1, &mpu);
 
 	while (1) {
-		readAccelerometer(I2C1, mpu.acc);
-		readGyroscope(I2C1, mpu.gyro);
-		readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
 
-		int i;
-		for (i = 0; i < 800000; i++)    /* Wait a bit. */
-		 __asm__("nop");
+		/* Update Rate For Sensors Set To 2 Hz */
+		if (update) {
+			readAccelerometer(I2C1, mpu.acc);
+			readGyroscope(I2C1, mpu.gyro);
+			readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
+		}
 	}
 
 	return 0;
