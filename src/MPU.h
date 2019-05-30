@@ -42,7 +42,6 @@ typedef struct {
     double magCalibration[3];  // x/y/z gyro calibration data stored here
     double acc[3], gyro[3], mag[3];
     float deltat;
-    float lastUpdate;
     float q[4];
 } MPU_Init;
 

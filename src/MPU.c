@@ -30,8 +30,7 @@ void mpuSetup(uint32_t I2C, MPU_Init *mpu) {
 	initMagnetometer(I2C, mpu->magCalibration);
 
 	/* Set Filter Variables */
-	mpu->deltat = 0.5; // Sets Update Rate For Sensors and Orientation Calculation to 1 second intervals
-
+	mpu->deltat = 0.5; // Sets Update Rate For Sensors and Orientation Calculation to 0.5 second intervals
 }
 
 void initMagnetometer(uint32_t I2C, double* magCalibration) {
