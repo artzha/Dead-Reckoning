@@ -14,7 +14,7 @@ LIBPATHS   = libopencm3
 CFLAGS     = -fdata-sections -ffunction-sections -g3 -Wall -mcpu=cortex-m3 -mlittle-endian -mthumb -I $(LIBPATHS)/include/ -D$(DEVICE) $(OPT)
 ASFLAGS    =  $(CFLAGS)
 LDSCRIPT   = $(LIBPATHS)/lib/stm32/f1/stm32f103x8.ld
-LDFLAGS    = -T $(LDSCRIPT)  -L$(LIBPATHS)/lib -lopencm3_stm32f1 --static -nostartfiles -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs
+LDFLAGS    = -T $(LDSCRIPT) -lm -L$(LIBPATHS)/lib -lopencm3_stm32f1 --static -nostartfiles -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs
 LIBOPENCM3 = $(LIBPATHS)/lib/libopencm3_stm32f1.a
 
 .PHONY: all clean flash burn hex bin

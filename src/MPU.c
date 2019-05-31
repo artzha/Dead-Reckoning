@@ -33,7 +33,7 @@ void mpuSetup(uint32_t I2C, MPU_Init *mpu) {
 	mpu->deltat = 0.5; // Sets Update Rate For Sensors and Orientation Calculation to 0.5 second intervals
 }
 
-void initMagnetometer(uint32_t I2C, double* magCalibration) {
+void initMagnetometer(uint32_t I2C, float* magCalibration) {
 	uint8_t data[2] = { MAG_CNTL, 0x00};
 	uint8_t rawCalibration[3];
 	i2c_transfer7(I2C, MAG_ADDR, data, 2, data, 0); // Power down magnetometer
@@ -64,7 +64,7 @@ void initMagnetometer(uint32_t I2C, double* magCalibration) {
 	i2c_transfer7(I2C, MAG_ADDR, data, 2, data, 0);
 }
 
-void readAccelerometer(uint32_t I2C,double* acc) {
+void readAccelerometer(uint32_t I2C, float* acc) {
 	uint8_t raw[6];
 	uint8_t addr[6] = { 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40 };
 	int i = 0;
@@ -82,7 +82,7 @@ void readAccelerometer(uint32_t I2C,double* acc) {
 	acc[2] = acc[2]/2048.0;
 }
 
-void readGyroscope(uint32_t I2C, double *gyro) {
+void readGyroscope(uint32_t I2C, float *gyro) {
 	uint8_t raw[6];
 	uint8_t addr[6] = { 0x43, 0x44, 0x45, 0x46, 0x47, 0x48 };
 	int i = 0;
@@ -100,7 +100,7 @@ void readGyroscope(uint32_t I2C, double *gyro) {
 	gyro[2] = gyro[2]/16.4;
 }
 
-void readMagnetometer(uint32_t I2C, double *mag, double* magCalibration) {
+void readMagnetometer(uint32_t I2C, float *mag, float* magCalibration) {
 	uint8_t data[2] = { MAG_ST1, 0 };
 	uint8_t status[2];
 	i2c_transfer7(I2C, MAG_ADDR, data, 1, status, 1);
@@ -134,7 +134,20 @@ void readMagnetometer(uint32_t I2C, double *mag, double* magCalibration) {
 
 }
 
-void MadgwickQuarternionUpdate(float *q, MPU_Init *mpu, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz) {
+void madgwickQuaternionRefresh(float *q, MPU_Init *mpu, float* acc, float* gyro, float* mag) {
+	// Sensors x (y)-axis of the accelerometer/gyro is aligned with the y (x)-axis of the magnetometer;
+	// the magnetometer z-axis (+ down) is misaligned with z-axis (+ up) of accelerometer and gyro!
+	// We have to make some allowance for this orientation mismatch in feeding the output to the quaternion filter.
+	// For the MPU9250+MS5637 Mini breakout the +x accel/gyro is North, then -y accel/gyro is East. So if we want te quaternions properly aligned
+	// we need to feed into the Madgwick function Ax, -Ay, -Az, Gx, -Gy, -Gz, My, -Mx, and Mz. But because gravity is by convention
+	// positive down, we need to invert the accel data, so we pass -Ax, Ay, Az, Gx, -Gy, -Gz, My, -Mx, and Mz into the Madgwick
+	// function to get North along the accel +x-axis, East along the accel -y-axis, and Down along the accel -z-axis.
+	// This orientation choice can be modified to allow any convenient (non-NED) orientation convention.
+	// Pass gyro rate as rad/s
+	float ax = -acc[0], ay = acc[1], az = acc[2];
+	float gx = gyro[0]*PI/180.0f, gy = -gyro[1]*PI/180.0f, gz = -gyro[2]*PI/180.0f;
+	float mx = mag[0], my = -mag[1], mz = mag[2];
+
 	float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
 	float norm;
 	float hx, hy, _2bx, _2bz;
@@ -222,5 +235,20 @@ void MadgwickQuarternionUpdate(float *q, MPU_Init *mpu, float ax, float ay, floa
 	q[1] = q2 * norm;
 	q[2] = q3 * norm;
 	q[3] = q4 * norm;
+}
 
+void quarternionToEulerAngle(float *q, float *pitch, float *yaw, float *roll) {
+	float a12 = 2.0f * (q[1] * q[2] + q[0] * q[3]);
+    float a22 = q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3];
+    float a31 = 2.0f * (q[0] * q[1] + q[2] * q[3]);
+    float a32 = 2.0f * (q[1] * q[3] - q[0] * q[2]);
+    float a33 = q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
+    *pitch	= -asinf(a32);
+    *roll	= atan2f(a31, a33);
+    *yaw	= atan2f(a12, a22);
+    *pitch	*= 180.0f / PI;
+    *yaw	*= 180.0f / PI; 
+    *yaw	+= 13.3f; // Declination at San Jose, California is 13 degrees 17 minutes on 2019-05-30
+    if(*yaw < 0) *yaw += 360.0f; // Ensure yaw stays between 0 and 360
+	*roll  *= 180.0f / PI;
 }

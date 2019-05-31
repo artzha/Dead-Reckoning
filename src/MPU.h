@@ -39,17 +39,20 @@
 
 typedef struct {
     float *magCal, *gyroCal;
-    double magCalibration[3];  // x/y/z gyro calibration data stored here
-    double acc[3], gyro[3], mag[3];
+    float magCalibration[3];        // x/y/z gyro calibration data stored here
+    float acc[3], gyro[3], mag[3];
+    float pitch, yaw, roll;
+                // a12, a22, a31, a32, a33; rotation matrix coefficients for Euler angles and gravity components
     float deltat;
     float q[4];
 } MPU_Init;
 
 void mpuSetup(uint32_t I2C, MPU_Init *mpu);
-void initMagnetometer(uint32_t I2C, double* magCalibration);
-void readAccelerometer(uint32_t I2C, double *acc);
-void readGyroscope(uint32_t I2C, double *gyro);
-void readMagnetometer(uint32_t I2C, double *mag, double* magCalibration);
-void MadgwickQuarternionUpdate(float *q, MPU_Init *mpu, float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz);
+void initMagnetometer(uint32_t I2C, float* magCalibration);
+void readAccelerometer(uint32_t I2C, float *acc);
+void readGyroscope(uint32_t I2C, float *gyro);
+void readMagnetometer(uint32_t I2C, float *mag, float* magCalibration);
+void madgwickQuaternionRefresh(float *q, MPU_Init *mpu, float* acc, float* gyro, float* mag);
+void quarternionToEulerAngle(float *q, float *pitch, float *yaw, float *roll);
 
 #endif

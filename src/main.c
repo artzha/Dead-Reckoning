@@ -123,6 +123,8 @@ int main(void)
 			readAccelerometer(I2C1, mpu.acc);
 			readGyroscope(I2C1, mpu.gyro);
 			readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
+			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
+			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 		}
 	}
 
