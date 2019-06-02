@@ -29,6 +29,12 @@ void mpuSetup(uint32_t I2C, MPU_Init *mpu) {
 	/* Enable Magnetometer */
 	initMagnetometer(I2C, mpu->magCalibration);
 
+	/* Set Initial Quarternion Values */
+	mpu->q[0] = 1;
+	mpu->q[1] = 0;
+	mpu->q[2] = 0;
+	mpu->q[3] = 0;
+
 	/* Set Filter Variables */
 	mpu->deltat = 0.5; // Sets Update Rate For Sensors and Orientation Calculation to 0.5 second intervals
 }
@@ -218,6 +224,7 @@ void madgwickQuaternionRefresh(float *q, MPU_Init *mpu, float* acc, float* gyro,
 	s3 *= norm;
 	s4 *= norm;
 
+	float beta = sqrtf(3.0f / 4.0f) * GyroMeasError;
 	// Compute rate of change of quaternion
 	qDot1 = 0.5f * (-q2 * gx - q3 * gy - q4 * gz) - beta * s1;
 	qDot2 = 0.5f * (q1 * gx + q3 * gz - q4 * gy) - beta * s2;

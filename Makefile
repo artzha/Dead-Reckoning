@@ -9,7 +9,7 @@ OBJDUMP    = arm-none-eabi-objdump
 PROGRAMMER = openocd
 PGFLAGS    = -f openocd.cfg -c "program $(PRJ_NAME).elf verify reset" -c shutdown
 DEVICE     = STM32F1
-OPT       ?= -Og
+# OPT       ?= -Og
 LIBPATHS   = libopencm3
 CFLAGS     = -fdata-sections -ffunction-sections -g3 -Wall -mcpu=cortex-m3 -mlittle-endian -mthumb -I $(LIBPATHS)/include/ -D$(DEVICE) $(OPT)
 ASFLAGS    =  $(CFLAGS)

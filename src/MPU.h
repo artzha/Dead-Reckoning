@@ -34,8 +34,6 @@
 #define PI                      3.141592653
 #define GyroMeasError           PI * (4.0f / 180.0f)
 #define GyroMeasDrift           PI * (0.0f  / 180.0f)
-#define beta                    sqrt(3.0f / 4.0f) * GyroMeasError
-#define zeta                    sqrt(3.0f / 4.0f) * GyroMeasDrift
 
 typedef struct {
     float *magCal, *gyroCal;
