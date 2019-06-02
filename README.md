@@ -13,13 +13,17 @@ This repository is a collection of my code projects as I learn the aspects of pr
 
 #### Setup
 I decided to use this as an opportunity to understand and implement I2C communications. The basic features of I2C remain the same with this microcontroller. To start, I the RCC registers to set the clock frequency to 16 MHz.
+
 `RCC->CFGR       |= RCC_CFGR_PLLSRC;     // set PLL source to HSE
  RCC->CFGR       |= RCC_CFGR_PLLMULL2;   // multiply by 2`
+ 
 The second part of the setup process is to intialize gpio pins 6 and 7 on port B to use open drain and set the pins' clock speed. 
+
 `GPIOB->CRL  |= GPIO_CRL_MODE6_1; // sets alternate function open drain mode
  GPIOB->CRL  |= GPIO_CRL_MODE7_1; // sets alternate function open drain mode
  I2C1->CR2 &= ((uint16_t)0xFFC0); // Clear FREQ [5:0] bits
  I2C1->CR2 |= ClockSpeed; // Ex: 0x10 sets to f_pclk to 16 MHz and is equal to 16`
+ 
 The last part of the setup involves setting up the rest of the control registers for I2C, renabling the peripherals, and setting the ACK bit.
 
 #### Write and Reading
