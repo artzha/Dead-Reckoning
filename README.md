@@ -1,10 +1,17 @@
-# Description
+# Position Tracking Algorithms and Synchronized Computations In Embedded Systems
 
 ## Introduction
 
-This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 Cortex M3 micro controller at the register level. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer and Kalman Filters. This computation will be run in parallel by multiple STM32's and accelerometers to create an additional layer of redundancy and discrepancies will be resolved using the Byzantine General's Algorithm.
+This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 micro controller with minimal library abstractions. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer. Multiple sensor fusion and noise adjustment algorithms were tested for accuracy, such as using Madgwick's Quarternion and Kalman Filtering algorithms. In order to add an additional layer of redundancy for mission critical applications, multiple STM32's and accelerometers will run the identical computation synchronously and descrepancies will be resolved using the Byzantine General's Algorithm.
 
-Note: I decided to develop this project simply using predefined CMSIS registers to gain a better understanding of how to develop high efficiency and robust code for microproccesors.
+## Project Overview
+1. I2C Communication
+2. IMU Calibration
+3. Sensor Fusion Implementation
+
+### I2C Communication
+
+I decided to use this as an opportunity to understand and implement I2C communications.
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
