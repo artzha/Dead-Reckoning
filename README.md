@@ -11,7 +11,24 @@ This repository is a collection of my code projects as I learn the aspects of pr
 
 ### I2C Communication
 
-I decided to use this as an opportunity to understand and implement I2C communications.
+#### Setup
+I decided to use this as an opportunity to understand and implement I2C communications. The basic features of I2C remain the same with this microcontroller. To start, I the RCC registers to set the clock frequency to 16 MHz.
+`RCC->CFGR       |= RCC_CFGR_PLLSRC;     // set PLL source to HSE
+ RCC->CFGR       |= RCC_CFGR_PLLMULL2;   // multiply by 2`
+The second part of the setup process is to intialize gpio pins 6 and 7 on port B to use open drain and set the pins' clock speed. 
+`GPIOB->CRL  |= GPIO_CRL_MODE6_1; // sets alternate function open drain mode
+ GPIOB->CRL  |= GPIO_CRL_MODE7_1; // sets alternate function open drain mode
+ I2C1->CR2 &= ((uint16_t)0xFFC0); // Clear FREQ [5:0] bits
+ I2C1->CR2 |= ClockSpeed; // Ex: 0x10 sets to f_pclk to 16 MHz and is equal to 16`
+The last part of the setup involves setting up the rest of the control registers for I2C, renabling the peripherals, and setting the ACK bit.
+
+#### Write and Reading
+Reading/writing is tricky to setup on this microcontroller as read/write procedures are different depending on whether it is 1,2, or >= 3 bytes. While the specifics on the differences for these operations are too long to succintly describe below, the jist of it involves setting/resetting start bits and clearing status registers `SR1` and `SR2`. Additional details on this can be found STM32's documentation for I2C optimization. 
+
+#### Debugging
+As expected, there were a few hiccups that occurred. The issues were attributed to register specific settings and calculations for the correct clock frequency for I2C. I resolved these issues using a logic analyzer to check the waveforms.
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/logic-i2c.png "Logic Analyzer")
+
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
