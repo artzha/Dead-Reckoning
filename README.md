@@ -33,6 +33,30 @@ Reading/writing is tricky to setup on this microcontroller as read/write procedu
 As expected, there were a few hiccups that occurred. The issues were attributed to register specific settings and calculations for the correct clock frequency for I2C. I resolved these issues using a logic analyzer to check the waveforms.
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/logic-i2c.png "Logic Analyzer")
 
+### IMU Calibration
+Arguably one of the most overlooked parts of working with sensors is calibration. To read accelerometer and gyroscope data, I simply wrote to the registers containing these their information. The sensor data is stored in a high and low register, with the low register setting negative data values and the high register setting positive data values. To calculate the actual value of each sensor, I simply shifted the high register by one byte and OR'd it with the low register to obtain the final 16 bit value. Then, I simply adjusted the sensitivity of the accelerometer and gryoscope with the proper scaling value from the datasheet.
+
+`acc[0] = (int16_t)((int16_t)raw[0]<<8|raw[1]);
+	acc[1] = (int16_t)((int16_t)raw[2]<<8|raw[3]);
+	acc[2] = (int16_t)((int16_t)raw[4]<<8|raw[5]);`
+ 
+Calibrating the magnetometer was slightly more involved given that it's an external sensor separate from the accelerometer and gyroscope. To enable direct ability to read from the magnetometer, I had to first write to the bypass enable register. This gave me the ability to write directly to the magnetometer to read data, rather from reading from the FIFO register.
+
+`data[0] = MPU_INT_BYPASS_CFG;
+	data[1] = 0x22;
+	i2c_transfer7(I2C, MPU_ADDR, data, 2, data, 0);`
+ 
+The next step in initializing the magnetometer involved retrieving factory calibration values from the correct registers and using those values to convert raw magnetometer readings to microteslas. The conversion formula I used is shown below. 
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/conversion.png "Conversion Formula")
+
+The last part of calibrating the magnetometer is adjusting for hard and soft iron biases. Hard iron biases are simply to adjust for, as they're a result of constant magnetic interferences. To calculate the adjustment for hard iron biases, simply log data in the xyz axes while moving the sensor in a figure eight pattern. When you plot magetometer data in the xyz axes against each other, the result should look roughly look a circle centered around the origin. If it is not centered around the origin, simply take find the average of the maximum x,y, and z values and substract them from the xyz axis readings. This effectively cancels the effects of an hard iron biases. The matlab plot below shows how offset the values for my magetometer were.
+
+### Sensor Fusion Implementation
+
+#### Madgwick Quarternion Representation
+
+
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
