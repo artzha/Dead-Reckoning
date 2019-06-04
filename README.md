@@ -63,6 +63,13 @@ Below, I will describe the basic mathematical derivation behind using the 9 axis
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/block.png "Block Diagram")
 
+When you represent an objects trajectory and heading with Euler angles, the euler angle representation is not unique, since any rotation about the axis parallel to the true orientation is equivalent. Quarternion angles are a way of uniquely determining the objects orientation, and they provide several useful properties. Put simply, Quarternions are formed by four components in the form of `a + bi + cj + dk`, where a, b, c, and d are real numbers and i, j, and k are fundamental quarternion units. Listed below are several properties of quarternions. Additional basic information can be found here: https://en.wikipedia.org/wiki/Quaternion
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/quartprop1.png "Quarternion Property 1")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/quartprop2.png "Quarternion Property 2")
+
+
+
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
 The following tools are used for these projects:
