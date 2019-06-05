@@ -72,7 +72,7 @@ We can denote the quarternion product by the symbol shown below. This allows us 
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/hamilton.png "Hamilton")
 
-Using this rule, we define the bottom formula below to describe the transformation from one orientation representation of vector a in frame A to the same vector b but instead in frame B. A geometricly intuitive way of approaching this formula is by imagining that you're rotating quarternion AB about the vector A. We then rotate the new vector by the conjugate of quarternion AB, which is actually equivalent to rotating the vector A about quaternion BA. This allows us to transform the same vector representation of our object into two different reference frames. This is useful because it gives us a closed form, efficient computational way to not only representing orientations uniquely, but also transforming an orientation from one frame to the next. To simply the calculation, the rotation matrix AB can be reduced to the second figure below.
+Using this rule, we define the bottom formula below to describe the transformation from one orientation representation of vector a in frame A to the same vector b but instead in frame B. A geometricly intuitive way of approaching this formula is by imagining that you're rotating quarternion AB about the vector A. We then rotate the new vector by the conjugate of quarternion AB, which is actually equivalent to rotating the vector A about quaternion BA. This allows us to transform the same vector representation of our object into two different reference frames. This is useful because it gives us a closed form, efficient computational way to not only representing orientations uniquely, but also transform an orientation from one frame to the next. To simply the calculation, the rotation matrix AB can be reduced to the second figure below.
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/rotate1.png "Rotation Formula")
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/rotate2.png "Rotation Matrix")
@@ -81,7 +81,7 @@ For more practical purposes in real aerospace or position tracking models, we ca
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/euler.png "Conversion Formula")
 
-With this background, we can now proceed to understanding how we take sensor data and convert them into this representation format. Arguably teh most crucial sensor for this calculation is the gyroscope, as it measures the raw angular rate of change. Taking the derivative of the sensor's orientation relative to Earth and rotating this orientation by the angular rate of change, we can calculate the updated angular rate of change of the sensor. Using simple calculus, we take this angular rate of change, multiply by delta t, and add it to the initial sensor orientation to determine what the updated orientation is. 
+With this background, we can now proceed to understanding how we take sensor data and convert them into this representation format. Arguably the most crucial sensor for this calculation is the gyroscope, as it measures the raw angular rate of change. Taking the derivative of the sensor's orientation relative to Earth and rotating this orientation by the angular rate of change, we can calculate the updated angular rate of change of the sensor. Using simple calculus, we take this angular rate of change, multiply by delta t, and add it to the initial sensor orientation to determine what the updated orientation is. 
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationAngular.png "orientationAngular")
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationDerivative.png "orientationDerivative")
@@ -93,7 +93,7 @@ So far, we have been assuming that our orientation is already in an unique quart
 
 To actually minimize this cost function, I simply used gradient descent, as it both computationally efficient and relatively easy to implement. For those unfamiliar with gradient descent, the computation process goes as follows. We take the initial quarternion orientation and subtract it by a step size multiplied by a gradient of the orientation. This gradient is by definition the Jacobian matrix times the cost function itself. For those unfamiliar with the Jacobian, in lamens terms, it is simply a scaling factor used when changing between different coordinate systems
 
-![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient1.png "gradient1")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient.png "gradient1")
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient2.png "gradient2")
 
 
