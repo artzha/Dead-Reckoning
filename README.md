@@ -68,6 +68,34 @@ When you represent an objects trajectory and heading with Euler angles, the eule
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/quartprop1.png "Quarternion Property 1")
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/quartprop2.png "Quarternion Property 2")
 
+We can denote the quarternion product by the symbol shown below. This allows us to define compound orientations using Hamilton's rule.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/hamilton.png "Hamilton")
+
+Using this rule, we define the bottom formula below to describe the transformation from one orientation representation of vector a in frame A to the same vector b but instead in frame B. A geometricly intuitive way of approaching this formula is by imagining that you're rotating quarternion AB about the vector A. We then rotate the new vector by the conjugate of quarternion AB, which is actually equivalent to rotating the vector A about quaternion BA. This allows us to transform the same vector representation of our object into two different reference frames. This is useful because it gives us a closed form, efficient computational way to not only representing orientations uniquely, but also transforming an orientation from one frame to the next. To simply the calculation, the rotation matrix AB can be reduced to the second figure below.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/rotate1.png "Rotation Formula")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/rotate2.png "Rotation Matrix")
+
+For more practical purposes in real aerospace or position tracking models, we can also quickly convert this quarternion representation to euler angles. This allows us to take advantage of the useful properties of quarternions while maintaining the intuitive quality euler angles provide us. The conversion formula from quarternions to euler angles are shown below.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/euler.png "Conversion Formula")
+
+With this background, we can now proceed to understanding how we take sensor data and convert them into this representation format. Arguably teh most crucial sensor for this calculation is the gyroscope, as it measures the raw angular rate of change. Taking the derivative of the sensor's orientation relative to Earth and rotating this orientation by the angular rate of change, we can calculate the updated angular rate of change of the sensor. Using simple calculus, we take this angular rate of change, multiply by delta t, and add it to the initial sensor orientation to determine what the updated orientation is. 
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationAngular.png "orientationAngular")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationDerivative.png "orientationDerivative")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationCalculation.png "orientationCalculation")
+
+So far, we have been assuming that our orientation is already in an unique quarternion form. However, the gyroscope data alone is not enough to allow a complete determination of the orientation. To do so, we need to use the accelerometer and magnetometer to give us the direction of the sensor frame relative to Earth. To compute orientation, we simply take the current orientation estimate, rotate it in the reference direction to align with Earth's reference frame, rotate it once more to acheive the same orientation w.r.t Earth's reference frame instead, and then align it with the measured direction of the sensor. This can be treated as a cost function, in which we optimize to determine the optimum quarternion orientation value, which will be the complete solution we use.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/costfunction.png "costfunction")
+
+To actually minimize this cost function, I simply used gradient descent, as it both computationally efficient and relatively easy to implement. For those unfamiliar with gradient descent, the computation process goes as follows. We take the initial quarternion orientation and subtract it by a step size multiplied by a gradient of the orientation. This gradient is by definition the Jacobian matrix times the cost function itself. For those unfamiliar with the Jacobian, in lamens terms, it is simply a scaling factor used when changing between different coordinate systems
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient1.png "gradient1")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient2.png "gradient2")
+
 
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
