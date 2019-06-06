@@ -58,10 +58,8 @@ The last part of calibrating the magnetometer is adjusting for hard and soft iro
 
 #### Madgwick Quarternion Representation
 
-The original source of this algorithm is derived the paper listed here at http://x-io.co.uk/res/doc/madgwick_internal_report.pdf 
-Below, I will describe the basic mathematical derivation behind using the 9 axis accelerometer to determine a unique representation of the sensor payload. The advantage of this algorithm over conventional Kalman Filters is that is it computationally efficient, involving 270 scalar operations and 5 square root operations per filter operation.
-
-![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/block.png "Block Diagram")
+The original source of this algorithm is derived the paper listed here at http://x-io.co.uk/res/doc/madgwick_internal_report.pdf I will not cover all of the aspects of this paper, but I will attempt to remark about parts that I believe are critical as well as impart an intuitive understanding of what's occuring. 
+Below, I will describe the basic mathematical derivation behind using the 9 axis accelerometer to determine a unique representation of the sensor payload. The advantage of this algorithm over conventional Kalman Filters is that is it computationally efficient, involving 270 scalar operations and 5 square root operations per filter operation. Later, I will also cover an implementation with Kalman Filters for comparison in both computation intensity and accuracy.
 
 When you represent an objects trajectory and heading with Euler angles, the euler angle representation is not unique, since any rotation about the axis parallel to the true orientation is equivalent. Quarternion angles are a way of uniquely determining the objects orientation, and they provide several useful properties. Put simply, Quarternions are formed by four components in the form of `a + bi + cj + dk`, where a, b, c, and d are real numbers and i, j, and k are fundamental quarternion units. Listed below are several properties of quarternions. Additional basic information can be found here: https://en.wikipedia.org/wiki/Quaternion
 
@@ -91,11 +89,22 @@ So far, we have been assuming that our orientation is already in an unique quart
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/costfunction.png "costfunction")
 
-To actually minimize this cost function, I simply used gradient descent, as it both computationally efficient and relatively easy to implement. For those unfamiliar with gradient descent, the computation process goes as follows. We take the initial quarternion orientation and subtract it by a step size multiplied by a gradient of the orientation. This gradient is by definition the Jacobian matrix times the cost function itself. For those unfamiliar with the Jacobian, in lamens terms, it is simply a scaling factor used when changing between different coordinate systems
+To actually minimize this cost function, I simply used gradient descent, as it both computationally efficient and relatively easy to implement. For those unfamiliar with gradient descent, the computation process goes as follows. We take the initial quarternion orientation and subtract it by a step size multiplied bythe normalized gradient of the orientation. We normalize the the gradient because we simply want to determine the change in direction of the orientation, not madnitude. This gradient is by definition the Jacobian matrix times the cost function itself. For those unfamiliar with the Jacobian, in lamens terms, it is simply a scaling factor used when changing between different coordinate systems
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient.png "gradient1")
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/gradient2.png "gradient2")
 
+One thing to note is the step size. Typically, step size is adjusted for during each step of the process by using the second derivative of the cost function to guage how much it needs to be adjusted. However, because of the computational load of such a task, it is more beneficial for memory/processer limited microcontrollers to instead calculate the step size using the formula shown below. As long as the rate of convergence for the step size is greater than the angular rate of change, we are guaranteed that it will converge. Understanding this, we can update the step size as the physical orientation rate of change of the sensor multiplied by the time period in which it occurs and also alpha, a manually adjusted scaling unit to account to noise in accelerometer and magnetometer measurements.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/stepsize.png "step size")
+
+Moving on, we also have to account for the magnetic distortion as a result of intereferences like electronic devices and metal constructions. Declination errors cannot be corrected for without an additional reference for heading. To account for this error, I will be using the declination at my current location from NOAA's website. More sophisticated implementations of this algorithm can also store a declination data structure to lookup and constantly update the declination as needed. Inclination errors, however, can be compensated by using the accelerometer as an additional measure of attitude. Following the same pattern as earlier, we rotate the magnetometer measurement in the sensor's last measured orientation and remove the effects of erroneous inclication and normalize b_t to only have components in the x and z axes, ensuring that any magnetic interterences simply affect the heading.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/magCalibration.png "Mag Compensation")
+
+Compensating for the gyroscope bias is a similar process, in which you compensate for any gyroscope bias by determining a suitable bias constant and subtracting this factor from the measurement to obtain a compensated value. Putting all of this moving pieces together, we finally construct the algorithm shown below, which displays how the magnetometer measurements/compensation, accelerometer/magnetometer fusion, and gyroscope integration with gradient descent work together to help us continuously update the quarternion representation of our sensor's orientation. 
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/block.png "Block Diagram")
 
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
