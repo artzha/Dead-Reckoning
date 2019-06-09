@@ -4,11 +4,8 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
-#include "MPU.h"
-#include "Sync.h"
 
 volatile float update = 0;
-Time timer = {0, 0, 0, 0}; // initialize timer values
 
 static void clock_setup(void)
 {
@@ -20,38 +17,30 @@ static void gpio_setup(void)
 	/* Enable GPIOB clock. */
 	rcc_periph_clock_enable(RCC_GPIOB);
 
-	/* Set GPIO6/7 (in GPIO port B) to 'open drain' for the LEDs. */
-	// gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
-	//               GPIO_CNF_OUTPUT_PUSHPULL, GPIO6);
-	// gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
-	//               GPIO_CNF_OUTPUT_PUSHPULL, GPIO7);
+	/* Set GPIO6/7 (in GPIO port B) to 'output push-pull' for the LEDs. */
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
+	              GPIO_CNF_OUTPUT_PUSHPULL, GPIO6);
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
+	              GPIO_CNF_OUTPUT_PUSHPULL, GPIO7);
 }
 
 static void timer_setup(void)
 {
 	rcc_periph_clock_enable(RCC_TIM2);
-	rcc_periph_clock_enable(RCC_TIM3);
 	/* Set timer start value. */
 	TIM_CNT(TIM2) = 1;
-	TIM_CNT(TIM3) = 1;
 
 	/* Set timer prescaler. 72MHz/1440 => 50000 counts per second. */
 	TIM_PSC(TIM2) = 1440;
-	/* Set timer prescaler to 72MHz/72 => 1000000 counts per second */
-	TIM_PSC(TIM3) = 72;
 
 	/* End timer value. If this is reached an interrupt is generated. */
 	TIM_ARR(TIM2) = 25000;
-	/* End timer 1000000Hz/1000 -> 1 millisecond */
-	TIM_ARR(TIM3) = 1000;
 
 	/* Update interrupt enable. */
 	TIM_DIER(TIM2) |= TIM_DIER_UIE;
-	TIM_DIER(TIM3) |= TIM_DIER_UIE;
 
 	/* Start timer. */
 	TIM_CR1(TIM2) |= TIM_CR1_CEN;
-	TIM_CR1(TIM3) |= TIM_CR1_CEN;
 }
 
 static void nvic_setup(void)
@@ -59,8 +48,6 @@ static void nvic_setup(void)
 	/* Without this the timer interrupt routine will never be called. */
 	nvic_enable_irq(NVIC_TIM2_IRQ);
 	nvic_set_priority(NVIC_TIM2_IRQ, 1);
-	nvic_enable_irq(NVIC_TIM3_IRQ);
-	nvic_set_priority(NVIC_TIM3_IRQ, 1);
 }
 
 static void i2c_setup(void)
@@ -116,14 +103,6 @@ void tim2_isr(void)
 	TIM_SR(TIM2) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
 }
 
-void tim3_isr(void)
-{
-	/* Update Time and Sync Calculations Here */
-	update_time(&timer);
-
-	TIM_SR(TIM3) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
-}
-
 int main(void)
 {
 	clock_setup();
@@ -132,22 +111,11 @@ int main(void)
 	nvic_setup();
 	timer_setup();
 
-	MPU_Init mpu;
-	
-	mpuSetup(I2C1, &mpu);
-
 	while (1) {
 
 		/* Update Rate For Sensors Set To 2 Hz */
 		if (update) {
-			readAccelerometer(I2C1, mpu.acc);
-			readGyroscope(I2C1, mpu.gyro);
-			readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
-			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
-			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
-
-			/* Synchronize with other microcontrollers as master */
-
+			
 		}
 	}
 
