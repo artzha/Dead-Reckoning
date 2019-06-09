@@ -119,7 +119,7 @@ void tim2_isr(void)
 void tim3_isr(void)
 {
 	/* Update Time and Sync Calculations Here */
-	update_time(&timer);
+	updateTime(&timer, 1);
 
 	TIM_SR(TIM3) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
 }
@@ -135,6 +135,9 @@ int main(void)
 	MPU_Init mpu;
 	
 	mpuSetup(I2C1, &mpu);
+
+	/* Set sender parameter as 1 for master and 0 for slave */
+	synchronizeControllers(I2C1, &timer, 1);
 
 	while (1) {
 
