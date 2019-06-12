@@ -1,9 +1,12 @@
 PRJ_NAME   = Position-Tracker
 CC         = arm-none-eabi-gcc
 SRCDIR     = src
+INCDIR	   = inc
+INCSRC	   = $(wildcard $(INCDIR)/*.c)
+INCASRC	   = $(wildcard $(INCDIR)/*.s)
 SRC        = $(wildcard $(SRCDIR)/*.c)
 ASRC       = $(wildcard $(SRCDIR)/*.s)
-OBJ        = $(SRC:.c=.o) $(ASRC:.s=.o)
+OBJ        = $(SRC:.c=.o) $(ASRC:.s=.o) $(INCSRC:.c=.o) $(INCASRC:.s=.o) 
 OBJCOPY    = arm-none-eabi-objcopy
 OBJDUMP    = arm-none-eabi-objdump
 PROGRAMMER = openocd
@@ -35,9 +38,10 @@ $(PRJ_NAME).elf: $(OBJ)
 	$(CC) -MMD -c $(ASFLAGS) $< -o $@
 
 -include $(SRCDIR)/*.d
+-include $(INCDIR)/*.d
 
 clean:
-	rm -f $(OBJ) $(PRJ_NAME).elf $(PRJ_NAME).hex $(PRJ_NAME).bin $(SRCDIR)/*.d
+	rm -f $(OBJ) $(PRJ_NAME).elf $(PRJ_NAME).hex $(PRJ_NAME).bin $(SRCDIR)/*.d $(INCDIR)/*.d
 
 distclean: clean
 	make -C libopencm3 clean

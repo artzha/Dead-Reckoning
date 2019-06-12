@@ -4,8 +4,8 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
-#include "MPU.h"
-#include "Sync.h"
+#include "../inc/MPU.h"
+#include "../inc/Sync.h"
 
 volatile float update = 0;
 Time timer = {0, 0, 0, 0}; // initialize timer values
