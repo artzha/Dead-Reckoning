@@ -137,7 +137,7 @@ int main(void)
 	mpuSetup(I2C1, &mpu);
 
 	/* Set sender parameter as 1 for master and 0 for slave */
-	synchronizeControllers(I2C1, timer, 0);
+	synchronizeControllers(I2C1, &timer, 0);
 
 	while (1) {
 
