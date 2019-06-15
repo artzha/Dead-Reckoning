@@ -3,7 +3,11 @@
 
 #include <libopencm3/stm32/i2c.h>
 
-#define MPU_ADDR_SYNC            0x32
+#define MPU_ADDR_SLAVE          0x32
+#define MPU_ADDR_MASTER         0x32
+#define REQ_TIME_SPLIT          (uint8_t) 0x01
+#define REQ_TIME_NORM           (uint8_t) 0x02
+#define 
 
 typedef struct {
     /* Set as volatile since uC is 16 bit and this is modified in interrupts*/

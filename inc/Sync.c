@@ -19,6 +19,7 @@ void updateTime(Time *timer, int32_t amount) {
 */
 void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
     /* Sync with uC connected on I2C1 line */
+    uint8_t time_format[2] = {0, 1};
     uint8_t millis_store[2];
     uint8_t seconds_store[4];
     uint8_t offset[5];
@@ -28,9 +29,9 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         /* PART 1 of Synchronization Procedure */
 
         /* Update millis store */
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, millis_store, 0, millis_store, 2);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, millis_store, 0, millis_store, 2);
         /* Update seconds store */
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, millis_store, 0, seconds_store, 4);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, millis_store, 0, seconds_store, 4);
 
         /* Calculate Offset Value */
         uint16_t temp_millis    = millis_store[1]<<8|millis_store[0];
@@ -49,12 +50,12 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         offset[2] = (timer->offset>>16) & 0xFF;
         offset[3] = (timer->offset>>8) & 0xFF;
         offset[4] = timer->offset & 0xFF;
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, offset, 5, offset, 0);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, offset, 5, offset, 0);
 
         /* PART 2 of Synchronization Procedure */
 
         uint8_t slave_time_arr[4];
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, slave_time_arr, 0, slave_time_arr, 4);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, slave_time_arr, 0, slave_time_arr, 4);
         int32_t delay = timer->millis + timer->seconds*1000;
         int32_t slave_time = bytesToTime(slave_time_arr);
 
@@ -63,7 +64,7 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         /* Send newly calculated transimission time, disregarding sign */
         uint8_t delay_bytes[4];
         timeToBytes(delay, delay_bytes);
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, delay_bytes, 4, delay_bytes, 0);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, delay_bytes, 4, delay_bytes, 0);
     } else {
         /* PART 1 of Synchronization Procedure */
 
@@ -80,12 +81,12 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         seconds_store[3] = *(time_store+5);
 
         /* Send millis store */
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, millis_store, 2, millis_store, 0);
+        i2c_transfer7(I2C_1, MPU_ADDR_MASTER, millis_store, 2, millis_store, 0);
         /* Send seconds store */
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, seconds_store, 4, seconds_store, 0);
+        i2c_transfer7(I2C_1, MPU_ADDR_MASTER, seconds_store, 4, seconds_store, 0);
 
         /* Receive offset amount from master and calibrate */
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, offset, 0, offset, 5);
+        i2c_transfer7(I2C_1, MPU_ADDR_MASTER, offset, 0, offset, 5);
 
         int32_t amount = bytesToTime(offset+1);
         amount = (offset[0] == 0) ? amount*-1 : amount;
@@ -99,10 +100,10 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         slave_time = timer->millis + timer->seconds*1000;
         uint8_t slave_time_bytes[4];
         timeToBytes(slave_time, slave_time_bytes);
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, slave_time_bytes, 4, slave_time_bytes, 0);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, slave_time_bytes, 4, slave_time_bytes, 0);
 
         /* Receive delay calculation from master and do final adjustment */
-        i2c_transfer7(I2C_1, MPU_ADDR_SYNC, slave_time_bytes, 0, slave_time_bytes, 4);
+        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, slave_time_bytes, 0, slave_time_bytes, 4);
         int32_t delay = bytesToTime(slave_time_bytes);
         timer->delay = -delay;
         updateTime(timer, timer->delay);

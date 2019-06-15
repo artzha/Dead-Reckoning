@@ -7,7 +7,10 @@
 #include "../inc/MPU.h"
 #include "../inc/Sync.h"
 
+/* I2C interrupt readings */
+
 volatile float update = 0;
+volatile uint8_t reading;
 Time timer = {0, 0, 0, 0}; // initialize timer values
 
 static void clock_setup(void)
@@ -61,6 +64,9 @@ static void nvic_setup(void)
 	nvic_set_priority(NVIC_TIM2_IRQ, 1);
 	nvic_enable_irq(NVIC_TIM3_IRQ);
 	nvic_set_priority(NVIC_TIM3_IRQ, 1);
+
+	/* Without this the I2C1 interrupt routine will never be called. */
+	nvic_enable_irq(NVIC_I2C1_EV_IRQ);
 }
 
 static void i2c_setup(void)
@@ -103,8 +109,84 @@ static void i2c_setup(void)
 	 */
 	i2c_set_own_7bit_slave_address(I2C1, 0x32);
 
+	/* 
+	 * This allows master to interrupt slave at any time to compare 
+	 * calculation and synchronize time data
+	 */
+	i2c_enable_interrupt(I2C1, I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN);
+
 	/* If everything is configured -> enable the peripheral. */
 	i2c_peripheral_enable(I2C1);
+
+	// slave needs to acknowledge on receiving bytes
+	// set it after enabling Peripheral i.e. PE = 1
+	i2c_enable_ack(I2C1);
+}
+
+void i2c1_ev_isr(void)
+{
+   uint32_t sr1, sr2;
+
+   sr1 = I2C_SR1(I2C1);
+
+   /* Sync with uC connected on I2C1 line */
+    uint8_t millis_store[2];
+    uint8_t seconds_store[4];
+    uint8_t offset[5];
+
+	/* Update current slave time */
+	uint32_t slave_time = timer.millis + timer.seconds*1000;
+	uint8_t time_store[4];
+	timeToBytes(slave_time, time_store);
+
+   // Address matched (Slave)
+   	if (sr1 & I2C_SR1_ADDR)
+    {
+        reading = 0;
+
+        //Clear the ADDR sequence by reading SR2.
+        sr2 = I2C_SR2(I2C1);
+        (void) sr2;
+    }
+	// Receive buffer not empty
+	else if (sr1 & I2C_SR1_RxNE)
+	{
+        //ignore more than 3 bytes reading
+        if (reading > 3)
+          return;
+
+        /* Receive offset amount from master and calibrate */
+        offset[reading++] = i2c_get_data(I2C1);
+        reading++;
+    }
+   	// Transmit buffer empty & Data byte transfer not finished
+   	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
+    {
+		/* Transmit time store */
+		i2c_send_data(I2C1, millis_store);
+		i2c_send_data(I2C1, seconds_store);
+    }
+	// done by master by sending STOP
+	//this event happens when slave is in Recv mode at the end of communication
+   	else if (sr1 & I2C_SR1_STOPF)
+    {
+        i2c_peripheral_enable(I2C1);
+
+        /* Slave should calibrate it's time register after master reception */
+		int32_t amount = bytesToTime(offset+1);
+        amount = (offset[0] == 0) ? amount*-1 : amount;
+        /* Update time on slave with offset */
+        timer.offset = -amount;
+        updateTime(&timer, timer.offset);
+    }
+ 	//this event happens when slave is in transmit mode at the end of communication
+   	else if (sr1 & I2C_SR1_AF)
+    {
+
+
+        //(void) I2C_SR1(I2C1);
+        I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
+    }
 }
 
 void tim2_isr(void)
