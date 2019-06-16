@@ -8,7 +8,7 @@
 #include "../inc/Sync.h"
 
 volatile float update = 0;
-Time timer = {0, 0, 0, 0}; // initialize timer values
+Time timer = {0, 0}; // initialize timer values
 
 static void clock_setup(void)
 {

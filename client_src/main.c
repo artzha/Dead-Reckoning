@@ -11,7 +11,9 @@
 
 volatile float update = 0;
 volatile uint8_t reading;
-Time timer = {0, 0, 0, 0}; // initialize timer values
+volatile uint8_t buf[6];
+uint8_t bufKey = 0;
+Time timer = {0, 0}; // initialize timer values
 
 static void clock_setup(void)
 {
@@ -67,6 +69,7 @@ static void nvic_setup(void)
 
 	/* Without this the I2C1 interrupt routine will never be called. */
 	nvic_enable_irq(NVIC_I2C1_EV_IRQ);
+	nvic_set_priority(NVIC_I2C1_EV_IRQ, 1);
 }
 
 static void i2c_setup(void)
@@ -125,68 +128,59 @@ static void i2c_setup(void)
 
 void i2c1_ev_isr(void)
 {
-   uint32_t sr1, sr2;
+   	uint32_t sr1, sr2;
 
-   sr1 = I2C_SR1(I2C1);
+   	sr1 = I2C_SR1(I2C1);
 
-   /* Sync with uC connected on I2C1 line */
-    uint8_t millis_store[2];
-    uint8_t seconds_store[4];
-    uint8_t offset[5];
+	// Address matched (Slave)
+	if (sr1 & I2C_SR1_ADDR)
+	{
+		/* Reset read index on start of new message */
+		reading = 0;
+		bufKey = 0;
 
-	/* Update current slave time */
-	uint32_t slave_time = timer.millis + timer.seconds*1000;
-	uint8_t time_store[4];
-	timeToBytes(slave_time, time_store);
+		/* Update time store millis|seconds MSB then LSB*/
+		buf[0] = (timer.millis>>8) & 0xFF;
+		buf[1] = timer.millis & 0xFF;
+		buf[2] = (timer.seconds>>24) & 0xFF;
+		buf[3] = (timer.seconds>>16) & 0xFF;
+		buf[4] = (timer.seconds>>8) & 0xFF;
+		buf[5] = timer.seconds & 0xFF;
 
-   // Address matched (Slave)
-   	if (sr1 & I2C_SR1_ADDR)
-    {
-        reading = 0;
-
-        //Clear the ADDR sequence by reading SR2.
-        sr2 = I2C_SR2(I2C1);
-        (void) sr2;
-    }
+		//Clear the ADDR sequence by reading SR2.
+		sr2 = I2C_SR2(I2C1);
+		(void) sr2;
+	}
 	// Receive buffer not empty
 	else if (sr1 & I2C_SR1_RxNE)
 	{
-        //ignore more than 3 bytes reading
-        if (reading > 3)
-          return;
-
-        /* Receive offset amount from master and calibrate */
-        offset[reading++] = i2c_get_data(I2C1);
-        reading++;
-    }
-   	// Transmit buffer empty & Data byte transfer not finished
-   	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
-    {
-		/* Transmit time store */
-		i2c_send_data(I2C1, millis_store);
-		i2c_send_data(I2C1, seconds_store);
-    }
+		/* Receive offset amount from master and calibrate */
+		timer.offset[reading++] = i2c_get_data(I2C1);
+	}
+	// Transmit buffer empty & Data byte transfer not finished
+	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
+	{
+		i2c_send_data(I2C1, *(buf + bufKey++));
+	}
 	// done by master by sending STOP
 	//this event happens when slave is in Recv mode at the end of communication
-   	else if (sr1 & I2C_SR1_STOPF)
-    {
-        i2c_peripheral_enable(I2C1);
+	else if (sr1 & I2C_SR1_STOPF)
+	{
+		i2c_peripheral_enable(I2C1);
 
-        /* Slave should calibrate it's time register after master reception */
-		int32_t amount = bytesToTime(offset+1);
-        amount = (offset[0] == 0) ? amount*-1 : amount;
-        /* Update time on slave with offset */
-        timer.offset = -amount;
-        updateTime(&timer, timer.offset);
-    }
- 	//this event happens when slave is in transmit mode at the end of communication
-   	else if (sr1 & I2C_SR1_AF)
-    {
-
-
-        //(void) I2C_SR1(I2C1);
-        I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
-    }
+		/* Subroutine on end slave reception */
+		int32_t amount = bytesToTime(timer.offset+1);
+		amount = (timer.offset[0] == 0) ? amount*(-1.0) : amount;
+		/* Update time on slave with offset */
+		timer.delay = -amount;
+		updateTime(&timer, timer.delay);		
+	}
+	//this event happens when slave is in transmit mode at the end of communication
+	else if (sr1 & I2C_SR1_AF)
+	{
+		//(void) I2C_SR1(I2C1);
+		I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
+	}
 }
 
 void tim2_isr(void)
@@ -214,26 +208,23 @@ int main(void)
 	nvic_setup();
 	timer_setup();
 
-	MPU_Init mpu;
+	// MPU_Init mpu;
 	
-	mpuSetup(I2C1, &mpu);
-
-	/* Set sender parameter as 1 for master and 0 for slave */
-	synchronizeControllers(I2C1, &timer, 0);
+	// mpuSetup(I2C1, &mpu);
 
 	while (1) {
 
 		/* Update Rate For Sensors Set To 2 Hz */
-		if (update) {
-			readAccelerometer(I2C1, mpu.acc);
-			readGyroscope(I2C1, mpu.gyro);
-			readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
-			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
-			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
+		// if (update) {
+		// 	readAccelerometer(I2C1, mpu.acc);
+		// 	readGyroscope(I2C1, mpu.gyro);
+		// 	readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
+		// 	madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
+		// 	quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
-			/* Synchronize with other microcontrollers as master */
+		// 	/* Synchronize with other microcontrollers as master */
 
-		}
+		// }
 	}
 
 	return 0;
