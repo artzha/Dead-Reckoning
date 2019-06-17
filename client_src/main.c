@@ -11,7 +11,7 @@
 
 volatile float update = 0;
 volatile uint8_t reading;
-volatile uint8_t buf[6];
+volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
 uint8_t bufKey = 0;
 Time timer = {0, 0}; // initialize timer values
 
@@ -74,7 +74,7 @@ static void nvic_setup(void)
 
 static void i2c_setup(void)
 {
-	/* Enable clocks for I2C2 and AFIO. */
+	/* Enable clocks for I2C1 and AFIO. */
 	rcc_periph_clock_enable(RCC_I2C1);
 	rcc_periph_clock_enable(RCC_AFIO);
 
@@ -170,7 +170,7 @@ void i2c1_ev_isr(void)
 
 		/* Subroutine on end slave reception */
 		int32_t amount = bytesToTime(timer.offset+1);
-		amount = (timer.offset[0] == 0) ? amount*(-1.0) : amount;
+		amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
 		/* Update time on slave with offset */
 		timer.delay = -amount;
 		updateTime(&timer, timer.delay);		
@@ -215,7 +215,7 @@ int main(void)
 	while (1) {
 
 		/* Update Rate For Sensors Set To 2 Hz */
-		// if (update) {
+		if (update) {
 		// 	readAccelerometer(I2C1, mpu.acc);
 		// 	readGyroscope(I2C1, mpu.gyro);
 		// 	readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
@@ -224,7 +224,7 @@ int main(void)
 
 		// 	/* Synchronize with other microcontrollers as master */
 
-		// }
+		}
 	}
 
 	return 0;

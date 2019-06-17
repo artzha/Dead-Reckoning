@@ -30,7 +30,7 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, time_store, 0, time_store, 6);
 
         /* Calculate Offset Value */
-        uint16_t temp_millis    = time_store[1]<<8|time_store[0];
+        uint16_t temp_millis    = time_store[0]<<8|time_store[1];
         uint32_t temp_seconds   = time_store[2]<<24|time_store[3]<<16|
                                 time_store[4]<<8|time_store[5];
         
@@ -51,7 +51,7 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         /* PART 2 of Synchronization Procedure */
 
         i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, time_store, 0, time_store, 6);
-        temp_millis    = time_store[1]<<8|time_store[0];
+        temp_millis    = time_store[0]<<8|time_store[1];
         temp_seconds   = time_store[2]<<24|time_store[3]<<16|
                                 time_store[4]<<8|time_store[5];
         uint32_t slave_time = temp_millis + temp_seconds*1000.0;
