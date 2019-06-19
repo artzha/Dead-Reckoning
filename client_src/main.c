@@ -13,7 +13,7 @@ volatile float update = 0;
 volatile uint8_t reading;
 volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
 uint8_t bufKey = 0;
-Time timer = {0, 0}; // initialize timer values
+Time timer = {0, 0, {0}, 0}; // initialize timer values
 
 static void clock_setup(void)
 {
@@ -170,10 +170,12 @@ void i2c1_ev_isr(void)
 
 		/* Subroutine on end slave reception */
 		int32_t amount = bytesToTime(timer.offset+1);
-		amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
-		/* Update time on slave with offset */
-		timer.delay = -amount;
-		updateTime(&timer, timer.delay);		
+		if (amount > 0) {
+			amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
+			/* Update time on slave with offset */
+			timer.delay = -amount;
+			updateTime(&timer, timer.delay);	
+		}	
 	}
 	//this event happens when slave is in transmit mode at the end of communication
 	else if (sr1 & I2C_SR1_AF)
