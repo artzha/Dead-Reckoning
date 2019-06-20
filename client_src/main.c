@@ -10,9 +10,10 @@
 /* I2C interrupt readings */
 
 volatile float update = 0;
-volatile uint8_t reading;
+volatile uint8_t reading = 0;
 volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
 uint8_t bufKey = 0;
+volatile uint8_t num_cycles = 0;
 Time timer = {0, 0, {0}, 0}; // initialize timer values
 
 static void clock_setup(void)
@@ -135,9 +136,14 @@ void i2c1_ev_isr(void)
 	// Address matched (Slave)
 	if (sr1 & I2C_SR1_ADDR)
 	{
-		/* Reset read index on start of new message */
-		reading = 0;
-		bufKey = 0;
+		/* Reset transmit buffer index if at end of buffer array */
+		if (bufKey == 5) {
+			bufKey = 0;
+		}
+		/* reset reading index if at end of offset array */
+		if (reading == 4) {
+			reading = 0;
+		}
 
 		/* Update time store millis|seconds MSB then LSB*/
 		buf[0] = (timer.millis>>8) & 0xFF;
@@ -160,7 +166,8 @@ void i2c1_ev_isr(void)
 	// Transmit buffer empty & Data byte transfer not finished
 	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
 	{
-		i2c_send_data(I2C1, *(buf + bufKey++));
+		i2c_send_data(I2C1, *(buf + bufKey));
+		bufKey++;
 	}
 	// done by master by sending STOP
 	//this event happens when slave is in Recv mode at the end of communication
@@ -170,11 +177,18 @@ void i2c1_ev_isr(void)
 
 		/* Subroutine on end slave reception */
 		int32_t amount = bytesToTime(timer.offset+1);
-		if (amount > 0) {
+		/* update own time once last byte in offset buffer has been received */
+		if (timer.offset[5] > 0) {
 			amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
 			/* Update time on slave with offset */
 			timer.delay = -amount;
-			updateTime(&timer, timer.delay);	
+			updateTime(&timer, timer.delay);
+
+			/* reset offset buffer after saving to delay */
+			uint8_t i = 0;
+			while(i++ < 5) {
+				timer.offset[i] = 0;
+			}
 		}	
 	}
 	//this event happens when slave is in transmit mode at the end of communication
