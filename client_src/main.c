@@ -14,7 +14,7 @@ volatile uint8_t reading = 0;
 volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
 uint8_t bufKey = 0;
 volatile uint8_t num_cycles = 0;
-Time timer = {0, 0, {0}, 0}; // initialize timer values
+Time timer = {0, 0, {0}, 0, -1}; // initialize timer values
 
 static void clock_setup(void)
 {
@@ -146,22 +146,26 @@ void i2c1_ev_isr(void)
 	// Address matched (Slave)
 	if (sr1 & I2C_SR1_ADDR)
 	{
-		/* Reset transmit buffer index if at end of buffer array */
-		if (bufKey == 5) {
-			bufKey = 0;
-		}
-		/* reset reading index if at end of offset array */
-		if (reading == 4) {
-			reading = 0;
-		}
+		if(timer.mode == -1 || timer.mode == 0) {
+			/* Reset transmit buffer index if at end of buffer array */
+			if (bufKey == 5) {
+				bufKey = 0;
+			}
+			/* reset reading index if at end of offset array */
+			if (reading == 4) {
+				reading = 0;
+			}
 
-		/* Update time store millis|seconds MSB then LSB*/
-		buf[0] = (timer.millis>>8) & 0xFF;
-		buf[1] = timer.millis & 0xFF;
-		buf[2] = (timer.seconds>>24) & 0xFF;
-		buf[3] = (timer.seconds>>16) & 0xFF;
-		buf[4] = (timer.seconds>>8) & 0xFF;
-		buf[5] = timer.seconds & 0xFF;
+			/* Update time store millis|seconds MSB then LSB*/
+			buf[0] = (timer.millis>>8) & 0xFF;
+			buf[1] = timer.millis & 0xFF;
+			buf[2] = (timer.seconds>>24) & 0xFF;
+			buf[3] = (timer.seconds>>16) & 0xFF;
+			buf[4] = (timer.seconds>>8) & 0xFF;
+			buf[5] = timer.seconds & 0xFF;
+		} else {
+			// TODO set buffers and reading keys and store orientation data
+		}
 
 		//Clear the ADDR sequence by reading SR2.
 		sr2 = I2C_SR2(I2C1);
@@ -170,14 +174,22 @@ void i2c1_ev_isr(void)
 	// Receive buffer not empty
 	else if (sr1 & I2C_SR1_RxNE)
 	{
-		/* Receive offset amount from master and calibrate */
-		timer.offset[reading++] = i2c_get_data(I2C1);
+		if (timer.mode == -1 || timer.mode == 0) {
+			/* Receive offset amount from master and calibrate */
+			timer.offset[reading++] = i2c_get_data(I2C1);
+		} else {
+			// TODO Load master data as needed 
+		}
 	}
 	// Transmit buffer empty & Data byte transfer not finished
 	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
 	{
-		i2c_send_data(I2C1, *(buf + bufKey));
-		bufKey++;
+		if (timer.mode == -1 || timer.mode == 0) {
+			i2c_send_data(I2C1, *(buf + bufKey));
+			bufKey++;
+		} else {
+			// TODO transfer orientation here
+		}
 	}
 	// done by master by sending STOP
 	//this event happens when slave is in Recv mode at the end of communication
@@ -185,21 +197,28 @@ void i2c1_ev_isr(void)
 	{
 		i2c_peripheral_enable(I2C1);
 
-		/* Subroutine on end slave reception */
-		int32_t amount = bytesToTime(timer.offset+1);
-		/* update own time once last byte in offset buffer has been received */
-		if (timer.offset[5] > 0) {
-			amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
-			/* Update time on slave with offset */
-			timer.delay = -amount;
-			updateTime(&timer, timer.delay);
+		if (timer.mode == -1 || timer.mode == 0) {
+			/* Subroutine on end slave reception */
+			int32_t amount = bytesToTime(timer.offset+1);
+			/* update own time once last byte in offset buffer has been received */
+			if (timer.offset[5] > 0) {
+				amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
+				/* Update time on slave with offset */
+				timer.delay = -amount;
+				updateTime(&timer, timer.delay);
 
-			/* reset offset buffer after saving to delay */
-			uint8_t i = 0;
-			while(i++ < 5) {
-				timer.offset[i] = 0;
+				/* reset offset buffer after saving to delay */
+				uint8_t i = 0;
+				while(i++ < 5) {
+					timer.offset[i] = 0;
+				}
 			}
-		}	
+
+			/* Increment mode until in orientation mode */
+			timer.mode += 1;
+		} else {
+			// TODO Handle master commands if needed
+		}
 	}
 	//this event happens when slave is in transmit mode at the end of communication
 	else if (sr1 & I2C_SR1_AF)
