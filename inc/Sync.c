@@ -17,7 +17,7 @@ void updateTime(Time *timer, int32_t amount) {
         SECONDS_1, SECONDS_2, SECONDS_3, SECONDS_4}
     @sender - Master is indicated with 1 and slave is indicated with a zero
 */
-void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
+void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender) {
     /* Sync with uC connected on I2C1 line */
     uint8_t time_store[6];
     uint8_t offset[5];
@@ -27,7 +27,7 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         /* PART 1 of Synchronization Procedure */
 
         /* Updates time store millis|seconds*/
-        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, time_store, 0, time_store, 6);
+        i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, time_store, 0, time_store, 6);
 
         /* Calculate Offset Value */
         uint16_t temp_millis    = time_store[0]<<8|time_store[1];
@@ -46,11 +46,11 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         offset[2] = (offset_total>>16) & 0xFF;
         offset[3] = (offset_total>>8) & 0xFF;
         offset[4] = offset_total & 0xFF;
-        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, offset, 5, offset, 0);
+        i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, offset, 5, offset, 0);
 
         /* PART 2 of Synchronization Procedure */
 
-        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, time_store, 0, time_store, 6);
+        i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, time_store, 0, time_store, 6);
         temp_millis    = time_store[0]<<8|time_store[1];
         temp_seconds   = time_store[2]<<24|time_store[3]<<16|
                                 time_store[4]<<8|time_store[5];
@@ -65,8 +65,36 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         uint8_t delay_bytes[5];
         timeToBytes(delay, delay_bytes+1);
         delay_bytes[0] = delay >= 0 ? 1 : 0;
-        i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, delay_bytes, 5, delay_bytes, 0);
+        i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, delay_bytes, 5, delay_bytes, 0);
     }
+}
+
+void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer) {
+    /* Store 4 bytes for pitch, roll, and yaw respectively */
+    int32_t pitch, roll, yaw;
+    int8_t orientation[12];
+    /* Request pitch, roll, and yaw from slave */
+    i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, orientation, 0, orientation, 12);
+    uint8_t i = 0;
+    while(i++ < 3) {
+        int32_t measurement = orientation[4*i]<<24 | orientation[4*i+1]<<16 |
+                                orientation[4*i+2]<<8 | orientation[4*i+3];
+        switch(i) {
+            case 0:
+                pitch = measurement;
+                break;
+            case 1: 
+                roll = measurement;
+                break;
+            case 2:
+                yaw = measurement;
+                break;
+            default:
+                break;
+        }
+    }
+    
+    /* Compare slave calculations to self */
 }
 
 void timeToBytes(uint32_t time, uint8_t *bytes) {

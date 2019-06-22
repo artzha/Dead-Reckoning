@@ -1,6 +1,7 @@
 #ifndef SYNC_h
 #define SYNC_h
 
+#include "./MPU.h"
 #include <libopencm3/stm32/i2c.h>
 
 #define MPU_ADDR_SLAVE          0x32
@@ -17,7 +18,8 @@ typedef struct {
 } Time;
 
 void updateTime(Time *timer, int32_t amount);
-void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender);
+void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender);
+void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer);
 void timeToBytes(uint32_t time, uint8_t*bytes);
 uint32_t bytesToTime(volatile uint8_t *bytes);
 
