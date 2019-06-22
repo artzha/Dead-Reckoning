@@ -59,7 +59,8 @@ void synchronizeControllers(uint32_t I2C_1, Time *timer, uint8_t sender) {
         /* Calculate Delay using Master - Slave Time */
         int32_t delay = timer->millis + timer->seconds*1000.0;
         delay = (delay - slave_time)/2.0;
-
+        timer->delay = delay;
+        
         /* Send newly calculated transimission time, including sign */
         uint8_t delay_bytes[5];
         timeToBytes(delay, delay_bytes+1);

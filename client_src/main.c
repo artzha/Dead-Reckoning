@@ -75,23 +75,27 @@ static void nvic_setup(void)
 
 static void i2c_setup(void)
 {
-	/* Enable clocks for I2C1 and AFIO. */
+	/* Enable clocks for I2C1 and I2C2 and AFIO. */
 	rcc_periph_clock_enable(RCC_I2C1);
+	rcc_periph_clock_enable(RCC_I2C2);
 	rcc_periph_clock_enable(RCC_AFIO);
 
 	/* Set alternate functions for the SCL and SDA pins of I2C2. */
 	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ,
 		      GPIO_CNF_OUTPUT_ALTFN_OPENDRAIN,
-		      GPIO_I2C1_SCL | GPIO_I2C1_SDA);
+		      GPIO_I2C1_SCL | GPIO_I2C1_SDA | GPIO_I2C2_SCL | GPIO_I2C2_SDA);
 
 	/* Disable the I2C before changing any configuration. */
 	i2c_peripheral_disable(I2C1);
+	i2c_peripheral_disable(I2C2);
 
 	/* APB1 is running at 36MHz. */
 	i2c_set_clock_frequency(I2C1, I2C_CR2_FREQ_36MHZ);
+	i2c_set_clock_frequency(I2C2, I2C_CR2_FREQ_36MHZ);
 
 	/* 400KHz - I2C Fast Mode */
 	i2c_set_fast_mode(I2C1);
+	i2c_set_fast_mode(I2C2);
 
 	/*
 	 * fclock for I2C is 36MHz APB2 -> cycle time 28ns, low time at 400kHz
@@ -99,6 +103,7 @@ static void i2c_setup(void)
 	 * Datasheet suggests 0x1e.
 	 */
 	i2c_set_ccr(I2C1, 0x1e);
+	i2c_set_ccr(I2C2, 0x1e);
 
 	/*
 	 * fclock for I2C is 36MHz -> cycle time 28ns, rise time for
@@ -106,25 +111,30 @@ static void i2c_setup(void)
 	 * Incremented by 1 -> 11.
 	 */
 	i2c_set_trise(I2C1, 0x0b);
+	i2c_set_trise(I2C2, 0x0b);
 
 	/*
 	 * This is our slave address - needed only if we want to receive from
 	 * other masters.
 	 */
 	i2c_set_own_7bit_slave_address(I2C1, 0x32);
+	i2c_set_own_7bit_slave_address(I2C2, 0x32);
 
 	/* 
 	 * This allows master to interrupt slave at any time to compare 
 	 * calculation and synchronize time data
 	 */
 	i2c_enable_interrupt(I2C1, I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN);
+	i2c_enable_interrupt(I2C2, I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN);
 
 	/* If everything is configured -> enable the peripheral. */
 	i2c_peripheral_enable(I2C1);
+	i2c_peripheral_enable(I2C2);
 
 	// slave needs to acknowledge on receiving bytes
 	// set it after enabling Peripheral i.e. PE = 1
 	i2c_enable_ack(I2C1);
+	i2c_enable_ack(I2C2);
 }
 
 void i2c1_ev_isr(void)
@@ -224,21 +234,21 @@ int main(void)
 	nvic_setup();
 	timer_setup();
 
-	// MPU_Init mpu;
+	MPU_Init mpu;
 	
-	// mpuSetup(I2C1, &mpu);
+	mpuSetup(I2C2, &mpu);
 
 	while (1) {
 
 		/* Update Rate For Sensors Set To 2 Hz */
 		if (update) {
-		// 	readAccelerometer(I2C1, mpu.acc);
-		// 	readGyroscope(I2C1, mpu.gyro);
-		// 	readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
-		// 	madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
-		// 	quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
+			readAccelerometer(I2C2, mpu.acc);
+			readGyroscope(I2C2, mpu.gyro);
+			readMagnetometer(I2C2, mpu.mag, mpu.magCalibration);
+			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
+			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
-		// 	/* Synchronize with other microcontrollers as master */
+			/* Synchronize with other microcontrollers as master */
 
 		}
 	}
