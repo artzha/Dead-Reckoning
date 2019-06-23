@@ -12,9 +12,14 @@
 volatile float update = 0;
 volatile uint8_t reading = 0;
 volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
+volatile uint8_t orientation[15];
+volatile uint8_t orien_key = 0;
 uint8_t bufKey = 0;
 volatile uint8_t num_cycles = 0;
 Time timer = {0, 0, {0}, 0, -1}; // initialize timer values
+
+/* Declare mpu for interrupt usage */
+MPU_Init mpu;
 
 static void clock_setup(void)
 {
@@ -164,7 +169,38 @@ void i2c1_ev_isr(void)
 			buf[4] = (timer.seconds>>8) & 0xFF;
 			buf[5] = timer.seconds & 0xFF;
 		} else {
-			// TODO set buffers and reading keys and store orientation data
+			/* Reset orientation index if reached end of array */
+			if (orien_key >= 14) {
+				orien_key = 0;
+			}
+			
+			uint8_t i = 0;
+			while(i++ < 3) {
+				/* Convert and store current orientation measurements */
+				uint32_t measurement;
+				switch(i) {
+					case 0:
+						measurement = mpu.pitch * 1000.0;
+						orientation[5*i] = mpu.pitch < 0 ? 0 : 1;
+						break;
+					case 1:
+						measurement = mpu.roll * 1000.0;
+						orientation[5*i] = mpu.roll < 0 ? 0 : 1;
+						break;
+					case 2:
+						measurement = mpu.yaw * 1000.0;
+						orientation[5*i] = mpu.yaw < 0 ? 0 : 1;
+						break;
+					default:
+						break;
+				}
+				/* Encode 0 for negative and 1 for positive measurement */
+
+				orientation[(5*i)+1] = (measurement>>24) & 0xFF;
+				orientation[(5*i)+2] = (measurement>>16) & 0xFF;
+				orientation[(5*i)+3] = (measurement>>8) & 0xFF;
+				orientation[(5*i)+4] = measurement & 0xFF;
+			}
 		}
 
 		//Clear the ADDR sequence by reading SR2.
@@ -188,7 +224,8 @@ void i2c1_ev_isr(void)
 			i2c_send_data(I2C1, *(buf + bufKey));
 			bufKey++;
 		} else {
-			// TODO transfer orientation here
+			i2c_send_data(I2C1, *(orientation + orien_key));
+			orien_key++;
 		}
 	}
 	// done by master by sending STOP
@@ -212,10 +249,9 @@ void i2c1_ev_isr(void)
 				while(i++ < 5) {
 					timer.offset[i] = 0;
 				}
+				/* Increment mode until in orientation mode */
+				timer.mode++;
 			}
-
-			/* Increment mode until in orientation mode */
-			timer.mode += 1;
 		} else {
 			// TODO Handle master commands if needed
 		}
@@ -252,8 +288,6 @@ int main(void)
 	i2c_setup();
 	nvic_setup();
 	timer_setup();
-
-	MPU_Init mpu;
 	
 	mpuSetup(I2C2, &mpu);
 

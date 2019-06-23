@@ -150,7 +150,7 @@ int main(void)
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
 			/* Synchronize with other microcontrollers as master */
-
+			synchronizeOrientation(I2C1, &mpu, &timer);
 		}
 	}
 

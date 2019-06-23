@@ -71,14 +71,18 @@ void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender) {
 
 void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer) {
     /* Store 4 bytes for pitch, roll, and yaw respectively */
-    int32_t pitch, roll, yaw;
-    int8_t orientation[12];
+    float pitch, roll, yaw;
+    uint8_t orientation[15];
     /* Request pitch, roll, and yaw from slave */
-    i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, orientation, 0, orientation, 12);
+    i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, orientation, 0, orientation, 15);
     uint8_t i = 0;
     while(i++ < 3) {
-        int32_t measurement = orientation[4*i]<<24 | orientation[4*i+1]<<16 |
-                                orientation[4*i+2]<<8 | orientation[4*i+3];
+        uint8_t sign = orientation[5*i];
+        float measurement = orientation[(5*i)+1]<<24 | orientation[(5*i)+2]<<16 |
+                                orientation[(5*i)+3]<<8 | orientation[(5*i)+4];
+        /* Normalize and convert measurement to float */
+        measurement /= 1000.0;
+        measurement = sign==0 ? measurement*(-1.0) : measurement;
         switch(i) {
             case 0:
                 pitch = measurement;
