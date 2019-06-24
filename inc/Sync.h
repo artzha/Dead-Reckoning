@@ -14,7 +14,7 @@ typedef struct {
     volatile uint32_t seconds;
     volatile uint8_t offset[5]; // stored in milliseconds (raw data)
     volatile int32_t delay; // converted to time with signed values
-    volatile int8_t mode; // config mode is 1, orientation mode is 2, initially set to 0
+    volatile uint8_t mode; // config mode is 1, orientation mode is 2, initially set to 0
 } Time;
 
 void updateTime(Time *timer, int32_t amount);

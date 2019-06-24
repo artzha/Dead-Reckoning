@@ -12,14 +12,14 @@
 volatile float update = 0;
 volatile uint8_t reading = 0;
 volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
-volatile uint8_t orientation[15];
-volatile uint8_t orien_key = 0;
-uint8_t bufKey = 0;
+volatile uint8_t orientation[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+volatile uint8_t orienKey = 0;
+volatile uint8_t bufKey = 0;
 volatile uint8_t num_cycles = 0;
-Time timer = {0, 0, {0}, 0, -1}; // initialize timer values
+Time timer = {0, 0, {0}, 0, 0}; // initialize timer values
 
-/* Declare mpu for interrupt usage */
-MPU_Init mpu;
+/* Declare mpu vars for interrupt usage */
+volatile float intPitch, intRoll, intYaw = 0;
 
 static void clock_setup(void)
 {
@@ -151,7 +151,7 @@ void i2c1_ev_isr(void)
 	// Address matched (Slave)
 	if (sr1 & I2C_SR1_ADDR)
 	{
-		if(timer.mode == -1 || timer.mode == 0) {
+		if(timer.mode == 0 || timer.mode == 1) {
 			/* Reset transmit buffer index if at end of buffer array */
 			if (bufKey == 5) {
 				bufKey = 0;
@@ -170,26 +170,35 @@ void i2c1_ev_isr(void)
 			buf[5] = timer.seconds & 0xFF;
 		} else {
 			/* Reset orientation index if reached end of array */
-			if (orien_key >= 14) {
-				orien_key = 0;
-			}
 			
 			uint8_t i = 0;
-			while(i++ < 3) {
+			while(i < 3) {
 				/* Convert and store current orientation measurements */
 				uint32_t measurement;
 				switch(i) {
 					case 0:
-						measurement = mpu.pitch * 1000.0;
-						orientation[5*i] = mpu.pitch < 0 ? 0 : 1;
+						if (intPitch < 0) {
+							measurement = (uint32_t)(-intPitch * 1000);
+						} else {
+							measurement = (uint32_t)(intPitch * 1000);
+						}
+						orientation[5*i] = intPitch < 0 ? 0 : 1;
 						break;
 					case 1:
-						measurement = mpu.roll * 1000.0;
-						orientation[5*i] = mpu.roll < 0 ? 0 : 1;
+						if (intRoll < 0) {
+							measurement = (uint32_t)(-intRoll * 1000);
+						} else {
+							measurement = (uint32_t)(intRoll * 1000);
+						}
+						orientation[5*i] = intRoll < 0 ? 0 : 1;
 						break;
 					case 2:
-						measurement = mpu.yaw * 1000.0;
-						orientation[5*i] = mpu.yaw < 0 ? 0 : 1;
+						if (intYaw < 0) {
+							measurement = (uint32_t)(-intYaw * 1000);
+						} else {
+							measurement = (uint32_t)(intYaw * 1000);
+						}
+						orientation[5*i] = intYaw < 0 ? 0 : 1;
 						break;
 					default:
 						break;
@@ -200,6 +209,7 @@ void i2c1_ev_isr(void)
 				orientation[(5*i)+2] = (measurement>>16) & 0xFF;
 				orientation[(5*i)+3] = (measurement>>8) & 0xFF;
 				orientation[(5*i)+4] = measurement & 0xFF;
+				i++;
 			}
 		}
 
@@ -210,7 +220,7 @@ void i2c1_ev_isr(void)
 	// Receive buffer not empty
 	else if (sr1 & I2C_SR1_RxNE)
 	{
-		if (timer.mode == -1 || timer.mode == 0) {
+		if (timer.mode == 0 || timer.mode == 1) {
 			/* Receive offset amount from master and calibrate */
 			timer.offset[reading++] = i2c_get_data(I2C1);
 		} else {
@@ -220,12 +230,15 @@ void i2c1_ev_isr(void)
 	// Transmit buffer empty & Data byte transfer not finished
 	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
 	{
-		if (timer.mode == -1 || timer.mode == 0) {
+		if (timer.mode == 0 || timer.mode == 1) {
 			i2c_send_data(I2C1, *(buf + bufKey));
 			bufKey++;
 		} else {
-			i2c_send_data(I2C1, *(orientation + orien_key));
-			orien_key++;
+			if (orienKey == 15) {
+				orienKey = 0;
+			}
+			i2c_send_data(I2C1, *(orientation + orienKey));
+			orienKey++;
 		}
 	}
 	// done by master by sending STOP
@@ -234,7 +247,7 @@ void i2c1_ev_isr(void)
 	{
 		i2c_peripheral_enable(I2C1);
 
-		if (timer.mode == -1 || timer.mode == 0) {
+		if (timer.mode == 0 || timer.mode == 1) {
 			/* Subroutine on end slave reception */
 			int32_t amount = bytesToTime(timer.offset+1);
 			/* update own time once last byte in offset buffer has been received */
@@ -288,6 +301,8 @@ int main(void)
 	i2c_setup();
 	nvic_setup();
 	timer_setup();
+
+	MPU_Init mpu;
 	
 	mpuSetup(I2C2, &mpu);
 
@@ -302,7 +317,9 @@ int main(void)
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
 			/* Synchronize with other microcontrollers as master */
-
+			intPitch = mpu.pitch;
+			intRoll = mpu.roll;
+			intYaw = mpu.yaw;
 		}
 	}
 

@@ -78,8 +78,8 @@ void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer) {
     uint8_t i = 0;
     while(i++ < 3) {
         uint8_t sign = orientation[5*i];
-        float measurement = orientation[(5*i)+1]<<24 | orientation[(5*i)+2]<<16 |
-                                orientation[(5*i)+3]<<8 | orientation[(5*i)+4];
+        float measurement = orientation[5*i+1]<<24 | orientation[5*i+2]<<16 |
+                                orientation[5*i+3]<<8 | orientation[5*i+4];
         /* Normalize and convert measurement to float */
         measurement /= 1000.0;
         measurement = sign==0 ? measurement*(-1.0) : measurement;
