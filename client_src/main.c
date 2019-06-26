@@ -16,6 +16,7 @@ volatile uint8_t orientation[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 volatile uint8_t orienKey = 0;
 volatile uint8_t bufKey = 0;
 volatile uint8_t num_cycles = 0;
+volatile uint8_t mode = 0;
 Time timer = {0, 0, {0}, 0, 0}; // initialize timer values
 
 /* Declare mpu vars for interrupt usage */
@@ -170,7 +171,6 @@ void i2c1_ev_isr(void)
 			buf[5] = timer.seconds & 0xFF;
 		} else {
 			/* Reset orientation index if reached end of array */
-			
 			uint8_t i = 0;
 			while(i < 3) {
 				/* Convert and store current orientation measurements */
