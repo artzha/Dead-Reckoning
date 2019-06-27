@@ -153,15 +153,6 @@ void i2c1_ev_isr(void)
 	if (sr1 & I2C_SR1_ADDR)
 	{
 		if(timer.mode == 0 || timer.mode == 1) {
-			/* Reset transmit buffer index if at end of buffer array */
-			if (bufKey == 5) {
-				bufKey = 0;
-			}
-			/* reset reading index if at end of offset array */
-			if (reading == 4) {
-				reading = 0;
-			}
-
 			/* Update time store millis|seconds MSB then LSB*/
 			buf[0] = (timer.millis>>8) & 0xFF;
 			buf[1] = timer.millis & 0xFF;
@@ -170,6 +161,7 @@ void i2c1_ev_isr(void)
 			buf[4] = (timer.seconds>>8) & 0xFF;
 			buf[5] = timer.seconds & 0xFF;
 		} else {
+
 			/* Reset orientation index if reached end of array */
 			uint8_t i = 0;
 			while(i < 3) {
@@ -221,8 +213,13 @@ void i2c1_ev_isr(void)
 	else if (sr1 & I2C_SR1_RxNE)
 	{
 		if (timer.mode == 0 || timer.mode == 1) {
+			/* reset reading index if at end of offset array */
+			if (reading == 5) {
+				reading = 0;
+			}
 			/* Receive offset amount from master and calibrate */
-			timer.offset[reading++] = i2c_get_data(I2C1);
+			timer.offset[reading] = i2c_get_data(I2C1);
+			reading++;
 		} else {
 			// TODO Load master data as needed 
 		}
@@ -231,6 +228,10 @@ void i2c1_ev_isr(void)
 	else if ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF))
 	{
 		if (timer.mode == 0 || timer.mode == 1) {
+			/* Reset transmit buffer index if at end of buffer array */
+			if (bufKey == 6) {
+				bufKey = 0;
+			}
 			i2c_send_data(I2C1, *(buf + bufKey));
 			bufKey++;
 		} else {
@@ -251,7 +252,7 @@ void i2c1_ev_isr(void)
 			/* Subroutine on end slave reception */
 			int32_t amount = bytesToTime(timer.offset+1);
 			/* update own time once last byte in offset buffer has been received */
-			if (timer.offset[5] > 0) {
+			if (reading == 5) {
 				amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
 				/* Update time on slave with offset */
 				timer.delay = -amount;
@@ -259,8 +260,9 @@ void i2c1_ev_isr(void)
 
 				/* reset offset buffer after saving to delay */
 				uint8_t i = 0;
-				while(i++ < 5) {
+				while(i < 5) {
 					timer.offset[i] = 0;
+					i++;
 				}
 				/* Increment mode until in orientation mode */
 				timer.mode++;
