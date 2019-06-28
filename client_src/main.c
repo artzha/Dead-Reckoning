@@ -145,8 +145,11 @@ static void i2c_setup(void)
 
 void i2c1_ev_isr(void)
 {
-   	uint32_t sr1, sr2;
+	/* Disable Interrupts until done handling */
+	nvic_disable_irq(NVIC_I2C1_EV_IRQ);
 
+   	uint32_t sr1, sr2;
+	
    	sr1 = I2C_SR1(I2C1);
 
 	// Address matched (Slave)
@@ -161,34 +164,33 @@ void i2c1_ev_isr(void)
 			buf[4] = (timer.seconds>>8) & 0xFF;
 			buf[5] = timer.seconds & 0xFF;
 		} else {
-
 			/* Reset orientation index if reached end of array */
-			uint8_t i = 0;
+			int i = 0;
 			while(i < 3) {
 				/* Convert and store current orientation measurements */
 				uint32_t measurement;
 				switch(i) {
 					case 0:
 						if (intPitch < 0) {
-							measurement = (uint32_t)(-intPitch * 1000);
+							measurement = (int32_t)(-intPitch * 1000);
 						} else {
-							measurement = (uint32_t)(intPitch * 1000);
+							measurement = (int32_t)(intPitch * 1000);
 						}
 						orientation[5*i] = intPitch < 0 ? 0 : 1;
 						break;
 					case 1:
 						if (intRoll < 0) {
-							measurement = (uint32_t)(-intRoll * 1000);
+							measurement = (int32_t)(-intRoll * 1000);
 						} else {
-							measurement = (uint32_t)(intRoll * 1000);
+							measurement = (int32_t)(intRoll * 1000);
 						}
 						orientation[5*i] = intRoll < 0 ? 0 : 1;
 						break;
 					case 2:
 						if (intYaw < 0) {
-							measurement = (uint32_t)(-intYaw * 1000);
+							measurement = (int32_t)(-intYaw * 1000);
 						} else {
-							measurement = (uint32_t)(intYaw * 1000);
+							measurement = (int32_t)(intYaw * 1000);
 						}
 						orientation[5*i] = intYaw < 0 ? 0 : 1;
 						break;
@@ -259,7 +261,7 @@ void i2c1_ev_isr(void)
 				updateTime(&timer, timer.delay);
 
 				/* reset offset buffer after saving to delay */
-				uint8_t i = 0;
+				int i = 0;
 				while(i < 5) {
 					timer.offset[i] = 0;
 					i++;
@@ -277,6 +279,10 @@ void i2c1_ev_isr(void)
 		//(void) I2C_SR1(I2C1);
 		I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
 	}
+
+	/* Re enable interrupts after operations are completed */
+	nvic_enable_irq(NVIC_I2C1_EV_IRQ);
+
 }
 
 void tim2_isr(void)

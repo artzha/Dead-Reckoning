@@ -75,7 +75,7 @@ void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer) {
     uint8_t orientation[15];
     /* Request pitch, roll, and yaw from slave */
     i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, orientation, 0, orientation, 15);
-    uint8_t i = 0;
+    int i = 0;
     while(i < 3) {
         uint8_t sign = orientation[5*i];
         float measurement = orientation[(5*i)+1]<<24 | orientation[(5*i)+2]<<16 |
