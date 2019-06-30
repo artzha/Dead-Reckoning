@@ -103,7 +103,7 @@ void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer) {
 }
 
 void timeToBytes(uint32_t time, uint8_t *bytes) {
-    uint8_t i = 0;
+    int i = 0;
     *(bytes+3) = time & 0xFF;
     while(i < 3) {
         *(bytes+i) = time>>(8*(3-i))&0xFF;
