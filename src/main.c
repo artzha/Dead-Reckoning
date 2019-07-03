@@ -8,6 +8,7 @@
 #include "../inc/Sync.h"
 
 volatile float update = 0;
+volatile float numCycles = 0;
 Time timer = {0, 0}; // initialize timer values
 
 static void clock_setup(void)
@@ -149,8 +150,13 @@ int main(void)
 			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
-			/* Synchronize with other microcontrollers as master */
-			synchronizeOrientation(I2C1, &mpu, &timer);
+			// if (numCycles == 10) {
+			// 	/* Synchronize with other microcontrollers as master */
+				synchronizeOrientation(I2C1, &mpu, &timer);
+			// 	numCycles = 0;
+			// } else {
+			// 	numCycles++;
+			// }
 		}
 	}
 

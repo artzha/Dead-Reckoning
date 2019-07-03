@@ -70,9 +70,9 @@ static void nvic_setup(void)
 {
 	/* Without this the timer interrupt routine will never be called. */
 	nvic_enable_irq(NVIC_TIM2_IRQ);
-	nvic_set_priority(NVIC_TIM2_IRQ, 2);
+	nvic_set_priority(NVIC_TIM2_IRQ, 1);
 	nvic_enable_irq(NVIC_TIM3_IRQ);
-	nvic_set_priority(NVIC_TIM3_IRQ, 2);
+	nvic_set_priority(NVIC_TIM3_IRQ, 1);
 
 	/* Without this the I2C1 interrupt routine will never be called. */
 	nvic_enable_irq(NVIC_I2C1_EV_IRQ);
@@ -145,9 +145,6 @@ static void i2c_setup(void)
 
 void i2c1_ev_isr(void)
 {
-	/* Disable Interrupts until done handling */
-	nvic_disable_irq(NVIC_I2C1_EV_IRQ);
-
    	uint32_t sr1, sr2;
 	
    	sr1 = I2C_SR1(I2C1);
@@ -168,6 +165,7 @@ void i2c1_ev_isr(void)
 			int i = 0;
 			while(i < 3) {
 				/* Convert and store current orientation measurements */
+				intPitch = 128.55;
 				uint32_t measurement;
 				if (i == 0) {
 					if (intPitch < 0) {
@@ -191,7 +189,6 @@ void i2c1_ev_isr(void)
 					}
 					orientation[5*i] = intYaw < 0 ? 0 : 1;
 				}
-				
 				/* Encode 0 for negative and 1 for positive measurement */
 
 				orientation[(5*i)+1] = (measurement>>24) & 0xFF;
@@ -274,9 +271,11 @@ void i2c1_ev_isr(void)
 		//(void) I2C_SR1(I2C1);
 		I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
 	}
-
-	/* Re enable interrupts after operations are completed */
-	nvic_enable_irq(NVIC_I2C1_EV_IRQ);
+	// if (timer.mode == 2) {
+	// 	/* Re enable interrupts after operations are completed */
+	// 	nvic_disable_irq(NVIC_I2C1_EV_IRQ);
+	// 	return;
+	// }
 
 }
 
@@ -308,7 +307,7 @@ int main(void)
 	MPU_Init mpu;
 
 	mpuSetup(I2C2, &mpu);
-	
+
 	while (1) {
 		/* Update Rate For Sensors Set To 2 Hz */
 		if (update) {
@@ -319,10 +318,83 @@ int main(void)
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
 			/* Synchronize with other microcontrollers as master */
-
 			intPitch = mpu.pitch;
 			intRoll = mpu.roll;
 			intYaw = mpu.yaw;
+
+			// uint32_t sr1, sr2;
+
+			// /* Wait for address to match */
+			// while (!(sr1 & I2C_SR1_ADDR)) {
+			// 	sr1 = I2C_SR1(I2C1);
+			// }
+
+			// /* Reset orientation index if reached end of array */
+			// int i = 0;
+			// while(i < 3) {
+			// 	/* Convert and store current orientation measurements */
+			// 	uint32_t measurement;
+			// 	if (i == 0) {
+			// 		if (intPitch < 0) {
+			// 			measurement = (uint32_t)(-intPitch * 1000);
+			// 		} else {
+			// 			measurement = (uint32_t)(intPitch * 1000);
+			// 		}
+			// 		orientation[5*i] = intPitch < 0 ? 0 : 1;
+			// 	} else if (i == 1) {
+			// 		if (intRoll < 0) {
+			// 			measurement = (uint32_t)(-intRoll * 1000);
+			// 		} else {
+			// 			measurement = (uint32_t)(intRoll * 1000);
+			// 		}
+			// 		orientation[5*i] = intRoll < 0 ? 0 : 1;
+			// 	} else if (i == 2){
+			// 		if (intYaw < 0) {
+			// 			measurement = (uint32_t)(-intYaw * 1000);
+			// 		} else {
+			// 			measurement = (uint32_t)(intYaw * 1000);
+			// 		}
+			// 		orientation[5*i] = intYaw < 0 ? 0 : 1;
+			// 	}
+			// 	/* Encode 0 for negative and 1 for positive measurement */
+
+			// 	orientation[(5*i)+1] = (measurement>>24) & 0xFF;
+			// 	orientation[(5*i)+2] = (measurement>>16) & 0xFF;
+			// 	orientation[(5*i)+3] = (measurement>>8) & 0xFF;
+			// 	orientation[(5*i)+4] = measurement & 0xFF;
+			// 	i++;
+			// }
+
+			// //Clear the ADDR sequence by reading SR2.
+			// sr2 = I2C_SR2(I2C1);
+			// (void) sr2;
+ 
+			// // while ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF)); {
+			// // 	if (orienKey == 15) {
+			// // 		orienKey = 0;
+			// // 		break;
+			// // 	}
+			// // 	i2c_send_data(I2C1, *(orientation + orienKey));
+			// // 	orienKey++;
+			// // }
+			// sr1 = I2C_SR1(I2C1);
+			// while (orienKey != 15); {
+			// 	while (!(sr1 & I2C_SR1_BTF)) {
+			// 		sr1 = I2C_SR1(I2C1);
+			// 	}
+			// 	i2c_send_data(I2C1, *(orientation + orienKey));
+			// 	orienKey++;
+			// }
+			// orienKey = 0;
+
+			// while(!(sr1 & I2C_SR1_AF)) {
+			// 	sr1 = I2C_SR1(I2C1);
+			// }
+			// if (sr1 & I2C_SR1_AF) {
+			// 	I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
+			// }
+
+
 		}
 	}
 
