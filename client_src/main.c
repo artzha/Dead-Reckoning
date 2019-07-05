@@ -10,14 +10,14 @@
 /* I2C interrupt readings */
 
 volatile float update = 0;
-volatile uint8_t reading = 0;
+volatile int reading = 0;
 volatile uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
 volatile uint8_t orientation[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 volatile int orienKey = 0;
 volatile int bufKey = 0;
 volatile int mode = 0;
 
-Time timer = {0, 0, {0}, 0, 0}; // initialize timer values
+Time timer = {0, 0, {0, 0, 0, 0, 0}, 0, 0}; // initialize timer values
 
 /* Declare mpu vars for interrupt usage */
 volatile float intPitch, intRoll, intYaw;
@@ -152,6 +152,13 @@ void i2c1_ev_isr(void)
 	// Address matched (Slave)
 	if (sr1 & I2C_SR1_ADDR)
 	{
+		/* Reset orientation key after each addr match */
+		if (orienKey == 16) {
+			orienKey = 0;
+		}
+		if (bufKey == 7) {
+			bufKey = 0;
+		}
 		if(timer.mode == 0 || timer.mode == 1) {
 			/* Update time store millis|seconds MSB then LSB*/
 			buf[0] = (timer.millis>>8) & 0xFF;
@@ -165,7 +172,7 @@ void i2c1_ev_isr(void)
 			int i = 0;
 			while(i < 3) {
 				/* Convert and store current orientation measurements */
-				intPitch = 128.55;
+				// intPitch = 128.55;
 				uint32_t measurement;
 				if (i == 0) {
 					if (intPitch < 0) {
@@ -207,13 +214,8 @@ void i2c1_ev_isr(void)
 	else if (sr1 & I2C_SR1_RxNE)
 	{
 		if (timer.mode == 0 || timer.mode == 1) {
-			/* reset reading index if at end of offset array */
-			if (reading == 5) {
-				reading = 0;
-			}
 			/* Receive offset amount from master and calibrate */
-			timer.offset[reading] = i2c_get_data(I2C1);
-			reading++;
+			timer.offset[reading++] = i2c_get_data(I2C1);
 		} else {
 			// TODO Load master data as needed 
 		}
@@ -223,17 +225,9 @@ void i2c1_ev_isr(void)
 	{
 		if (timer.mode == 0 || timer.mode == 1) {
 			/* Reset transmit buffer index if at end of buffer array */
-			if (bufKey == 6) {
-				bufKey = 0;
-			}
-			i2c_send_data(I2C1, *(buf + bufKey));
-			bufKey++;
+			i2c_send_data(I2C1, *(buf + bufKey++));
 		} else {
-			if (orienKey == 15) {
-				orienKey = 0;
-			}
-			i2c_send_data(I2C1, *(orientation + orienKey));
-			orienKey++;
+			i2c_send_data(I2C1, *(orientation + orienKey++));
 		}
 	}
 	// done by master by sending STOP
@@ -241,15 +235,17 @@ void i2c1_ev_isr(void)
 	else if (sr1 & I2C_SR1_STOPF)
 	{
 		i2c_peripheral_enable(I2C1);
-
 		if (timer.mode == 0 || timer.mode == 1) {
 			/* Subroutine on end slave reception */
-			int32_t amount = bytesToTime(timer.offset+1);
+			int32_t amount = timer.offset[1]<<24|timer.offset[2]<<16|
+				timer.offset[3]<<8|timer.offset[4];
 			/* update own time once last byte in offset buffer has been received */
-			if (reading == 5) {
+			if (reading >= 5) {
+				reading = 0;
 				amount = (timer.offset[0] == 0) ? amount*(-1) : amount;
 				/* Update time on slave with offset */
 				timer.delay = -amount;
+				// timer.delay = -10;
 				updateTime(&timer, timer.delay);
 
 				/* reset offset buffer after saving to delay */
@@ -271,12 +267,6 @@ void i2c1_ev_isr(void)
 		//(void) I2C_SR1(I2C1);
 		I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
 	}
-	// if (timer.mode == 2) {
-	// 	/* Re enable interrupts after operations are completed */
-	// 	nvic_disable_irq(NVIC_I2C1_EV_IRQ);
-	// 	return;
-	// }
-
 }
 
 void tim2_isr(void)
@@ -321,80 +311,6 @@ int main(void)
 			intPitch = mpu.pitch;
 			intRoll = mpu.roll;
 			intYaw = mpu.yaw;
-
-			// uint32_t sr1, sr2;
-
-			// /* Wait for address to match */
-			// while (!(sr1 & I2C_SR1_ADDR)) {
-			// 	sr1 = I2C_SR1(I2C1);
-			// }
-
-			// /* Reset orientation index if reached end of array */
-			// int i = 0;
-			// while(i < 3) {
-			// 	/* Convert and store current orientation measurements */
-			// 	uint32_t measurement;
-			// 	if (i == 0) {
-			// 		if (intPitch < 0) {
-			// 			measurement = (uint32_t)(-intPitch * 1000);
-			// 		} else {
-			// 			measurement = (uint32_t)(intPitch * 1000);
-			// 		}
-			// 		orientation[5*i] = intPitch < 0 ? 0 : 1;
-			// 	} else if (i == 1) {
-			// 		if (intRoll < 0) {
-			// 			measurement = (uint32_t)(-intRoll * 1000);
-			// 		} else {
-			// 			measurement = (uint32_t)(intRoll * 1000);
-			// 		}
-			// 		orientation[5*i] = intRoll < 0 ? 0 : 1;
-			// 	} else if (i == 2){
-			// 		if (intYaw < 0) {
-			// 			measurement = (uint32_t)(-intYaw * 1000);
-			// 		} else {
-			// 			measurement = (uint32_t)(intYaw * 1000);
-			// 		}
-			// 		orientation[5*i] = intYaw < 0 ? 0 : 1;
-			// 	}
-			// 	/* Encode 0 for negative and 1 for positive measurement */
-
-			// 	orientation[(5*i)+1] = (measurement>>24) & 0xFF;
-			// 	orientation[(5*i)+2] = (measurement>>16) & 0xFF;
-			// 	orientation[(5*i)+3] = (measurement>>8) & 0xFF;
-			// 	orientation[(5*i)+4] = measurement & 0xFF;
-			// 	i++;
-			// }
-
-			// //Clear the ADDR sequence by reading SR2.
-			// sr2 = I2C_SR2(I2C1);
-			// (void) sr2;
- 
-			// // while ((sr1 & I2C_SR1_TxE) && !(sr1 & I2C_SR1_BTF)); {
-			// // 	if (orienKey == 15) {
-			// // 		orienKey = 0;
-			// // 		break;
-			// // 	}
-			// // 	i2c_send_data(I2C1, *(orientation + orienKey));
-			// // 	orienKey++;
-			// // }
-			// sr1 = I2C_SR1(I2C1);
-			// while (orienKey != 15); {
-			// 	while (!(sr1 & I2C_SR1_BTF)) {
-			// 		sr1 = I2C_SR1(I2C1);
-			// 	}
-			// 	i2c_send_data(I2C1, *(orientation + orienKey));
-			// 	orienKey++;
-			// }
-			// orienKey = 0;
-
-			// while(!(sr1 & I2C_SR1_AF)) {
-			// 	sr1 = I2C_SR1(I2C1);
-			// }
-			// if (sr1 & I2C_SR1_AF) {
-			// 	I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
-			// }
-
-
 		}
 	}
 

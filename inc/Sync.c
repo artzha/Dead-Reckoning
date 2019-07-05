@@ -4,11 +4,20 @@
     Updates timer struct in accordance to interrupt period t, 1 ms
 */
 void updateTime(Time *timer, int32_t amount) {
-    int32_t diff = (amount + timer->millis) % 1000;
-    /* Increment millisecond counter */
-    timer->millis = diff;
-    /* Increment seconds counter */
-    timer->seconds += (amount + timer->millis)/1000;
+    if (amount > 0) {
+        int32_t diff = (amount + timer->millis) % 1000;
+        /* Increment seconds counter */
+        timer->seconds += (amount + timer->millis)/1000;
+        /* Increment millisecond counter */
+        timer->millis = diff;
+    } else {
+        /* Case 1: subtracting more than register value
+            Case 2: subtracting less than regsiter value */
+        uint16_t temp_millis = timer->millis;
+        timer->millis = -(amount%1000) > temp_millis ?
+            1000 + (amount%1000) + temp_millis: temp_millis + amount%1000;
+        timer->seconds += -((-amount + temp_millis)/1000); 
+    }
 }
 
 /*
@@ -112,6 +121,5 @@ void timeToBytes(uint32_t time, uint8_t *bytes) {
 }
 
 uint32_t bytesToTime(volatile uint8_t *bytes) {
-    uint32_t time = bytes[0]<<24|bytes[1]<<16|bytes[2]<<8|bytes[3];
-    return time;
+    return bytes[0]<<24|bytes[1]<<16|bytes[2]<<8|bytes[3];
 }
