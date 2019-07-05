@@ -133,12 +133,12 @@ int main(void)
 	nvic_setup();
 	timer_setup();
 
+	/* Set sender parameter as 1 for master and 0 for slave */
+	synchronizeControllers(I2C1, &timer, 1);
+
 	MPU_Init mpu;
 	
 	mpuSetup(I2C1, &mpu);
-
-	/* Set sender parameter as 1 for master and 0 for slave */
-	synchronizeControllers(I2C1, &timer, 1);
 
 	while (1) {
 
