@@ -136,7 +136,7 @@ int main(void)
 	/* Set sender parameter as 1 for master and 0 for slave */
 	synchronizeControllers(I2C1, &timer, 1);
 
-	MPU_Init mpu;
+	static MPU_Init mpu;
 	
 	mpuSetup(I2C1, &mpu);
 
@@ -150,13 +150,7 @@ int main(void)
 			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
-			// if (numCycles == 10) {
-			// 	/* Synchronize with other microcontrollers as master */
-				synchronizeOrientation(I2C1, &mpu, &timer);
-			// 	numCycles = 0;
-			// } else {
-			// 	numCycles++;
-			// }
+			synchronizeOrientation(I2C1, &mpu, &timer);
 		}
 	}
 

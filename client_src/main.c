@@ -20,7 +20,7 @@ volatile int mode = 0;
 Time timer = {0, 0, {0, 0, 0, 0, 0}, 0, 0}; // initialize timer values
 
 /* Declare mpu vars for interrupt usage */
-volatile float intPitch, intRoll, intYaw;
+volatile static float intPitch, intRoll, intYaw;
 
 static void clock_setup(void)
 {
@@ -143,6 +143,65 @@ static void i2c_setup(void)
 	i2c_enable_ack(I2C2);
 }
 
+void tim2_isr(void)
+{
+	/* Update Necessary Variables Here */
+	update+=1;
+	if (update > 1) update = 0;
+
+	TIM_SR(TIM2) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
+}
+
+void tim3_isr(void)
+{
+	/* Update Time and Sync Calculations Here */
+	updateTime(&timer, 1);
+
+	TIM_SR(TIM3) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
+}
+
+void updateOrientation(float pitch, float roll, float yaw) {
+	intPitch = pitch;
+	intRoll = roll;
+	intYaw = yaw;
+}
+
+int main(void)
+{
+	clock_setup();
+	gpio_setup();
+	i2c_setup();
+	nvic_setup();
+	timer_setup();
+
+	static MPU_Init mpu;
+
+	mpuSetup(I2C2, &mpu);
+
+	while (1) {
+		/* Update Rate For Sensors Set To 2 Hz */
+		if (update) {
+			readAccelerometer(I2C2, mpu.acc);
+			readGyroscope(I2C2, mpu.gyro);
+			readMagnetometer(I2C2, mpu.mag, mpu.magCalibration);
+			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
+			
+			nvic_disable_irq(NVIC_I2C1_EV_IRQ);
+			nvic_disable_irq(NVIC_TIM3_IRQ);
+			nvic_disable_irq(NVIC_TIM2_IRQ);
+			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
+			updateOrientation(mpu.pitch, mpu.roll, mpu.yaw);
+			nvic_enable_irq(NVIC_TIM3_IRQ);
+			nvic_enable_irq(NVIC_TIM2_IRQ);
+			nvic_enable_irq(NVIC_I2C1_EV_IRQ);
+
+			/* Synchronize with other microcontrollers as master */
+		}
+	}
+
+	return 0;
+}
+
 void i2c1_ev_isr(void)
 {
    	uint32_t sr1, sr2;
@@ -173,29 +232,29 @@ void i2c1_ev_isr(void)
 			while(i < 3) {
 				/* Convert and store current orientation measurements */
 				// intPitch = 128.55;
-				uint32_t measurement;
-				if (i == 0) {
-					if (intPitch < 0) {
-						measurement = (uint32_t)(-intPitch * 1000);
-					} else {
-						measurement = (uint32_t)(intPitch * 1000);
-					}
-					orientation[5*i] = intPitch < 0 ? 0 : 1;
-				} else if (i == 1) {
-					if (intRoll < 0) {
-						measurement = (uint32_t)(-intRoll * 1000);
-					} else {
-						measurement = (uint32_t)(intRoll * 1000);
-					}
-					orientation[5*i] = intRoll < 0 ? 0 : 1;
-				} else if (i == 2){
-					if (intYaw < 0) {
-						measurement = (uint32_t)(-intYaw * 1000);
-					} else {
-						measurement = (uint32_t)(intYaw * 1000);
-					}
-					orientation[5*i] = intYaw < 0 ? 0 : 1;
-				}
+				uint32_t measurement = timer.millis;
+				// if (i == 0) {
+				// 	if (intPitch < 0) {
+				// 		measurement = (uint32_t)(-intPitch * 1000);
+				// 	} else {
+				// 		measurement = (uint32_t)(intPitch * 1000);
+				// 	}
+				// 	orientation[5*i] = intPitch < 0 ? 0 : 1;
+				// } else if (i == 1) {
+				// 	if (intRoll < 0) {
+				// 		measurement = (uint32_t)(-intRoll * 1000);
+				// 	} else {
+				// 		measurement = (uint32_t)(intRoll * 1000);
+				// 	}
+				// 	orientation[5*i] = intRoll < 0 ? 0 : 1;
+				// } else if (i == 2){
+				// 	if (intYaw < 0) {
+				// 		measurement = (uint32_t)(-intYaw * 1000);
+				// 	} else {
+				// 		measurement = (uint32_t)(intYaw * 1000);
+				// 	}
+				// 	orientation[5*i] = intYaw < 0 ? 0 : 1;
+				// }
 				/* Encode 0 for negative and 1 for positive measurement */
 
 				orientation[(5*i)+1] = (measurement>>24) & 0xFF;
@@ -267,52 +326,4 @@ void i2c1_ev_isr(void)
 		//(void) I2C_SR1(I2C1);
 		I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
 	}
-}
-
-void tim2_isr(void)
-{
-	/* Update Necessary Variables Here */
-	update+=1;
-	if (update > 1) update = 0;
-
-	TIM_SR(TIM2) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
-}
-
-void tim3_isr(void)
-{
-	/* Update Time and Sync Calculations Here */
-	updateTime(&timer, 1);
-
-	TIM_SR(TIM3) &= ~TIM_SR_UIF; /* Clear interrrupt flag. */
-}
-
-int main(void)
-{
-	clock_setup();
-	gpio_setup();
-	i2c_setup();
-	nvic_setup();
-	timer_setup();
-
-	MPU_Init mpu;
-
-	mpuSetup(I2C2, &mpu);
-
-	while (1) {
-		/* Update Rate For Sensors Set To 2 Hz */
-		if (update) {
-			readAccelerometer(I2C2, mpu.acc);
-			readGyroscope(I2C2, mpu.gyro);
-			readMagnetometer(I2C2, mpu.mag, mpu.magCalibration);
-			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
-			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
-
-			/* Synchronize with other microcontrollers as master */
-			intPitch = mpu.pitch;
-			intRoll = mpu.roll;
-			intYaw = mpu.yaw;
-		}
-	}
-
-	return 0;
 }
