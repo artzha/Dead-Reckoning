@@ -18,6 +18,7 @@ volatile int bufKey = 0;
 volatile int mode = 0;
 
 Time timer = {0, 0, {0, 0, 0, 0, 0}, 0, 0}; // initialize timer values
+static MPU_Init mpu;
 
 /* Declare mpu vars for interrupt usage */
 volatile static float intPitch, intRoll, intYaw;
@@ -174,8 +175,6 @@ int main(void)
 	nvic_setup();
 	timer_setup();
 
-	static MPU_Init mpu;
-
 	mpuSetup(I2C2, &mpu);
 
 	while (1) {
@@ -185,17 +184,11 @@ int main(void)
 			readGyroscope(I2C2, mpu.gyro);
 			readMagnetometer(I2C2, mpu.mag, mpu.magCalibration);
 			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
-			
-			nvic_disable_irq(NVIC_I2C1_EV_IRQ);
-			nvic_disable_irq(NVIC_TIM3_IRQ);
-			nvic_disable_irq(NVIC_TIM2_IRQ);
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
-			updateOrientation(mpu.pitch, mpu.roll, mpu.yaw);
-			nvic_enable_irq(NVIC_TIM3_IRQ);
-			nvic_enable_irq(NVIC_TIM2_IRQ);
-			nvic_enable_irq(NVIC_I2C1_EV_IRQ);
-
 			/* Synchronize with other microcontrollers as master */
+			nvic_disable_irq(NVIC_I2C1_EV_IRQ);
+			updateOrientation(mpu.pitch, mpu.roll, mpu.yaw);
+			nvic_enable_irq(NVIC_I2C1_EV_IRQ);
 		}
 	}
 
@@ -211,6 +204,9 @@ void i2c1_ev_isr(void)
 	// Address matched (Slave)
 	if (sr1 & I2C_SR1_ADDR)
 	{
+		//Clear the ADDR sequence by reading SR2.
+		sr2 = I2C_SR2(I2C1);
+		(void) sr2;
 		/* Reset orientation key after each addr match */
 		if (orienKey == 16) {
 			orienKey = 0;
@@ -232,29 +228,29 @@ void i2c1_ev_isr(void)
 			while(i < 3) {
 				/* Convert and store current orientation measurements */
 				// intPitch = 128.55;
-				uint32_t measurement = timer.millis;
-				// if (i == 0) {
-				// 	if (intPitch < 0) {
-				// 		measurement = (uint32_t)(-intPitch * 1000);
-				// 	} else {
-				// 		measurement = (uint32_t)(intPitch * 1000);
-				// 	}
-				// 	orientation[5*i] = intPitch < 0 ? 0 : 1;
-				// } else if (i == 1) {
-				// 	if (intRoll < 0) {
-				// 		measurement = (uint32_t)(-intRoll * 1000);
-				// 	} else {
-				// 		measurement = (uint32_t)(intRoll * 1000);
-				// 	}
-				// 	orientation[5*i] = intRoll < 0 ? 0 : 1;
-				// } else if (i == 2){
-				// 	if (intYaw < 0) {
-				// 		measurement = (uint32_t)(-intYaw * 1000);
-				// 	} else {
-				// 		measurement = (uint32_t)(intYaw * 1000);
-				// 	}
-				// 	orientation[5*i] = intYaw < 0 ? 0 : 1;
-				// }
+				uint32_t measurement;
+				if (i == 0) {
+					if (intPitch < 0) {
+						measurement = (uint32_t)(-intPitch * 1000);
+					} else {
+						measurement = (uint32_t)(intPitch * 1000);
+					}
+					orientation[5*i] = intPitch < 0 ? 0 : 1;
+				} else if (i == 1) {
+					if (intRoll < 0) {
+						measurement = (uint32_t)(-intRoll * 1000);
+					} else {
+						measurement = (uint32_t)(intRoll * 1000);
+					}
+					orientation[5*i] = intRoll < 0 ? 0 : 1;
+				} else if (i == 2){
+					if (intYaw < 0) {
+						measurement = (uint32_t)(-intYaw * 1000);
+					} else {
+						measurement = (uint32_t)(intYaw * 1000);
+					}
+					orientation[5*i] = intYaw < 0 ? 0 : 1;
+				}
 				/* Encode 0 for negative and 1 for positive measurement */
 
 				orientation[(5*i)+1] = (measurement>>24) & 0xFF;
@@ -264,10 +260,6 @@ void i2c1_ev_isr(void)
 				i++;
 			}
 		}
-
-		//Clear the ADDR sequence by reading SR2.
-		sr2 = I2C_SR2(I2C1);
-		(void) sr2;
 	}
 	// Receive buffer not empty
 	else if (sr1 & I2C_SR1_RxNE)
@@ -323,7 +315,9 @@ void i2c1_ev_isr(void)
 	//this event happens when slave is in transmit mode at the end of communication
 	else if (sr1 & I2C_SR1_AF)
 	{
-		//(void) I2C_SR1(I2C1);
+		// (void) I2C_SR1(I2C1);
 		I2C_SR1(I2C1) &= ~(I2C_SR1_AF);
 	}
+	
+	return;
 }
