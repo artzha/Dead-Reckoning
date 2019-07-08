@@ -167,6 +167,18 @@ void updateOrientation(float pitch, float roll, float yaw) {
 	intYaw = yaw;
 }
 
+void checkAddress() {
+	uint32_t sr1, sr2;
+	sr1 = I2C_SR1(I2C1);
+	while(!(sr1 & I2C_SR1_ADDR)) {
+		sr1 = I2C_SR1(I2C1);
+	}
+
+	//Clear the ADDR sequence by reading SR2.
+	sr2 = I2C_SR2(I2C1);
+	(void) sr2;
+}
+
 int main(void)
 {
 	clock_setup();
