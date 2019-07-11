@@ -16,18 +16,18 @@ I decided to use this as an opportunity to understand and implement I2C communic
 
 `RCC->CFGR       |= RCC_CFGR_PLLSRC;     // set PLL source to HSE  
  RCC->CFGR       |= RCC_CFGR_PLLMULL2;   // multiply by 2`
- 
-The second part of the setup process is to intialize gpio pins 6 and 7 on port B to use open drain and set the pins' clock speed. 
+
+The second part of the setup process is to intialize gpio pins 6 and 7 on port B to use open drain and set the pins' clock speed.
 
 `GPIOB->CRL  |= GPIO_CRL_MODE6_1; // sets alternate function open drain mode  
  GPIOB->CRL  |= GPIO_CRL_MODE7_1; // sets alternate function open drain mode  
  I2C1->CR2 &= ((uint16_t)0xFFC0); // Clear FREQ [5:0] bits  
  I2C1->CR2 |= ClockSpeed; // Ex: 0x10 sets to f_pclk to 16 MHz and is equal to 16`
- 
+
 The last part of the setup involves setting up the rest of the control registers for I2C, renabling the peripherals, and setting the ACK bit.
 
 #### Write and Reading
-Reading/writing is tricky to setup on this microcontroller as read/write procedures are different depending on whether it is 1,2, or >= 3 bytes. While the specifics on the differences for these operations are too long to succintly describe below, the jist of it involves setting/resetting start bits and clearing status registers `SR1` and `SR2`. Additional details on this can be found STM32's documentation for I2C optimization. 
+Reading/writing is tricky to setup on this microcontroller as read/write procedures are different depending on whether it is 1,2, or >= 3 bytes. While the specifics on the differences for these operations are too long to succintly describe below, the jist of it involves setting/resetting start bits and clearing status registers `SR1` and `SR2`. Additional details on this can be found STM32's documentation for I2C optimization.
 
 #### Debugging
 As expected, there were a few hiccups that occurred. The issues were attributed to register specific settings and calculations for the correct clock frequency for I2C. I resolved these issues using a logic analyzer to check the waveforms.
@@ -39,14 +39,14 @@ Arguably one of the most overlooked parts of working with sensors is calibration
 `acc[0] = (int16_t)((int16_t)raw[0]<<8|raw[1]);  
 acc[1] = (int16_t)((int16_t)raw[2]<<8|raw[3]);  
 acc[2] = (int16_t)((int16_t)raw[4]<<8|raw[5]);`
- 
+
 Calibrating the magnetometer was slightly more involved given that it's an external sensor separate from the accelerometer and gyroscope. To enable direct ability to read from the magnetometer, I had to first write to the bypass enable register. This gave me the ability to write directly to the magnetometer to read data, rather from reading from the FIFO register.
 
 `data[0] = MPU_INT_BYPASS_CFG;  
 data[1] = 0x22;  
 i2c_transfer7(I2C, MPU_ADDR, data, 2, data, 0);`
- 
-The next step in initializing the magnetometer involved retrieving factory calibration values from the correct registers and using those values to convert raw magnetometer readings to microteslas. The conversion formula I used is shown below. 
+
+The next step in initializing the magnetometer involved retrieving factory calibration values from the correct registers and using those values to convert raw magnetometer readings to microteslas. The conversion formula I used is shown below.
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/conversion.png "Conversion Formula")
 
@@ -58,7 +58,7 @@ The last part of calibrating the magnetometer is adjusting for hard and soft iro
 
 #### Madgwick Quarternion Representation
 
-The original source of this algorithm is derived the paper listed here at http://x-io.co.uk/res/doc/madgwick_internal_report.pdf I will not cover all of the aspects of this paper, but I will attempt to remark about parts that I believe are critical as well as impart an intuitive understanding of what's occuring. 
+The original source of this algorithm is derived the paper listed here at http://x-io.co.uk/res/doc/madgwick_internal_report.pdf I will not cover all of the aspects of this paper, but I will attempt to remark about parts that I believe are critical as well as impart an intuitive understanding of what's occuring.
 Below, I will describe the basic mathematical derivation behind using the 9 axis accelerometer to determine a unique representation of the sensor payload. The advantage of this algorithm over conventional Kalman Filters is that is it computationally efficient, involving 270 scalar operations and 5 square root operations per filter operation. Later, I will also cover an implementation with Kalman Filters for comparison in both computation intensity and accuracy.
 
 When you represent an objects trajectory and heading with Euler angles, the euler angle representation is not unique, since any rotation about the axis parallel to the true orientation is equivalent. Quarternion angles are a way of uniquely determining the objects orientation, and they provide several useful properties. Put simply, Quarternions are formed by four components in the form of `a + bi + cj + dk`, where a, b, c, and d are real numbers and i, j, and k are fundamental quarternion units. Listed below are several properties of quarternions. Additional basic information can be found here: https://en.wikipedia.org/wiki/Quaternion
@@ -79,7 +79,7 @@ For more practical purposes in real aerospace or position tracking models, we ca
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/euler.png "Conversion Formula")
 
-With this background, we can now proceed to understanding how we take sensor data and convert them into this representation format. Arguably the most crucial sensor for this calculation is the gyroscope, as it measures the raw angular rate of change. Taking the derivative of the sensor's orientation relative to Earth and rotating this orientation by the angular rate of change, we can calculate the updated angular rate of change of the sensor. Using simple calculus, we take this angular rate of change, multiply by delta t, and add it to the initial sensor orientation to determine what the updated orientation is. 
+With this background, we can now proceed to understanding how we take sensor data and convert them into this representation format. Arguably the most crucial sensor for this calculation is the gyroscope, as it measures the raw angular rate of change. Taking the derivative of the sensor's orientation relative to Earth and rotating this orientation by the angular rate of change, we can calculate the updated angular rate of change of the sensor. Using simple calculus, we take this angular rate of change, multiply by delta t, and add it to the initial sensor orientation to determine what the updated orientation is.
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationAngular.png "orientationAngular")
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/orientationDerivative.png "orientationDerivative")
@@ -102,7 +102,7 @@ Moving on, we also have to account for the magnetic distortion as a result of in
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/magCalibration.png "Mag Compensation")
 
-Compensating for the gyroscope bias is a similar process, in which you compensate for any gyroscope bias by determining a suitable bias constant and subtracting this factor from the measurement to obtain a compensated value. Putting all of this moving pieces together, we finally construct the algorithm shown below, which displays how the magnetometer measurements/compensation, accelerometer/magnetometer fusion, and gyroscope integration with gradient descent work together to help us continuously update the quarternion representation of our sensor's orientation. 
+Compensating for the gyroscope bias is a similar process, in which you compensate for any gyroscope bias by determining a suitable bias constant and subtracting this factor from the measurement to obtain a compensated value. Putting all of this moving pieces together, we finally construct the algorithm shown below, which displays how the magnetometer measurements/compensation, accelerometer/magnetometer fusion, and gyroscope integration with gradient descent work together to help us continuously update the quarternion representation of our sensor's orientation.
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/block.png "Block Diagram")
 
@@ -110,7 +110,9 @@ Compensating for the gyroscope bias is a similar process, in which you compensat
 
 #### Precision Time Protocol
 
-For this project, I chose to synchronize the clocks for three microcontrollers by implementing a lightweight precision time protocol, also known as PTP. My implementation is accurate within the sub millisecond range, and is easily adjustable to be accurate within the sub microsecond range, making it suitable for control and navigation systems. PTP was originally designed to synchronize networks and systems that required precise timing but lack access to satellite navigation signals. This aligns well with the motivation for dead reckoning position tracking because I too will not rely on any gps or satellite signals for navigation. 
+For this project, I chose to synchronize the clocks for three microcontrollers by implementing a lightweight precision time protocol, also known as PTP. My implementation is accurate within the sub millisecond range, and is easily adjustable to be accurate within the sub microsecond range, making it suitable for control and navigation systems. PTP was originally designed to synchronize networks and systems that required precise timing but lack access to satellite navigation signals. This aligns well with the motivation for dead reckoning position tracking because I too will not rely on any gps or satellite signals for navigation.
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/syncProtocol.png "Synchronization Diagram")
 
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
@@ -120,7 +122,7 @@ The following tools are used for these projects:
 * [stm32flash](https://sourceforge.net/projects/stm32flash/) flash tool using the on-board STM32 serial bootloader over UART.
 * [st-link](https://github.com/texane/stlink) flash tool using an ST-LINK V2 USB programmer.
 * [Official STM32 CMSIS](http://www.st.com/en/embedded-software/stm32cube-mcu-packages.html) files as part of their STM32Cube MCU packages.
-* libopencm3 files for a non-optimized implementation of the project with libopencm3 
+* libopencm3 files for a non-optimized implementation of the project with libopencm3
 
 ### Development Hardware
 
