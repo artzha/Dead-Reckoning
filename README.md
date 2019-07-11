@@ -110,9 +110,11 @@ Compensating for the gyroscope bias is a similar process, in which you compensat
 
 #### Precision Time Protocol
 
-For this project, I chose to synchronize the clocks for three microcontrollers by implementing a lightweight precision time protocol, also known as PTP. My implementation is accurate within the sub millisecond range, and is easily adjustable to be accurate within the sub microsecond range, making it suitable for control and navigation systems. PTP was originally designed to synchronize networks and systems that required precise timing but lack access to satellite navigation signals. This aligns well with the motivation for dead reckoning position tracking because I too will not rely on any gps or satellite signals for navigation.
+For this project, I chose to synchronize the clocks for three microcontrollers by implementing a lightweight precision time protocol, also known as PTP. My implementation is accurate within the sub millisecond range, and is easily adjustable to be accurate within the sub microsecond range, making it suitable for control and navigation systems. PTP was originally designed to synchronize networks and systems that required precise timing but lack access to satellite navigation signals. This aligns well with the motivation for dead reckoning position tracking because I too will not rely on any gps or satellite signals for navigation. I based my implementation on a research paper on clock synchronization for networked control systems, which can be found here: https://www.researchgate.net/publication/252228176_Clock_Synchronization_for_Networked_Control_Systems_Using_Low-Cost_Microcontrollers. More details on my implementation can be found below.
 
-![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/syncProtocol.png "Synchronization Diagram")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/syncProtocol1.png "Synchronization Diagram")
+
+This algorithm requires minimal processing power and is relatively simple to implement, making it suitable for application with smaller microcontrollers. The synchronization goes as follows. After initializing peripherals and I2C communication on the master device, it requests the time from its slave controllers. The slave microcontroller is programmed with a I2C interrupt service function to ensure that the response is sent quickly. In the ISR function,
 
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
