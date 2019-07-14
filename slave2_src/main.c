@@ -175,20 +175,20 @@ int main(void)
 	nvic_setup();
 	timer_setup();
 
-	// mpuSetup(I2C1, &mpu);
+	mpuSetup(I2C1, &mpu);
 
 	while (1) {
 		/* Update Rate For Sensors Set To 2 Hz */
 		if (update) {
-			// readAccelerometer(I2C1, mpu.acc);
-			// readGyroscope(I2C1, mpu.gyro);
-			// readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
-			// madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
-			// quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
-			// /* Synchronize with other microcontrollers as master */
-			// nvic_disable_irq(NVIC_I2C2_EV_IRQ);
-			// updateOrientation(mpu.pitch, mpu.roll, mpu.yaw);
-			// nvic_enable_irq(NVIC_I2C2_EV_IRQ);
+			readAccelerometer(I2C1, mpu.acc);
+			readGyroscope(I2C1, mpu.gyro);
+			readMagnetometer(I2C1, mpu.mag, mpu.magCalibration);
+			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
+			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
+			/* Synchronize with other microcontrollers as master */
+			nvic_disable_irq(NVIC_I2C2_EV_IRQ);
+			updateOrientation(mpu.pitch, mpu.roll, mpu.yaw);
+			nvic_enable_irq(NVIC_I2C2_EV_IRQ);
 		}
 	}
 
