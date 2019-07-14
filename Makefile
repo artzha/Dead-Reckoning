@@ -1,6 +1,6 @@
 PRJ_NAME   = Position-Tracker
 CC         = arm-none-eabi-gcc
-SRCDIR     = slave2_src
+SRCDIR     = src
 INCDIR	   = inc
 INCSRC	   = $(wildcard $(INCDIR)/*.c)
 INCASRC	   = $(wildcard $(INCDIR)/*.s)

@@ -160,7 +160,7 @@ int main(void)
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
 			synchronizeOrientation(I2C1, &mpu, &timer);
-			// synchronizeOrientation(I2C2, &mpu, &timer);
+			synchronizeOrientation(I2C2, &mpu, &timer);
 		}
 	}
 
