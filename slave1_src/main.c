@@ -125,14 +125,12 @@ static void i2c_setup(void)
 	 * other masters.
 	 */
 	i2c_set_own_7bit_slave_address(I2C1, 0x32);
-	i2c_set_own_7bit_slave_address(I2C2, 0x32);
 
 	/* 
 	 * This allows master to interrupt slave at any time to compare 
 	 * calculation and synchronize time data
 	 */
 	i2c_enable_interrupt(I2C1, I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN);
-	i2c_enable_interrupt(I2C2, I2C_CR2_ITEVTEN | I2C_CR2_ITBUFEN);
 
 	/* If everything is configured -> enable the peripheral. */
 	i2c_peripheral_enable(I2C1);
@@ -165,18 +163,6 @@ void updateOrientation(float pitch, float roll, float yaw) {
 	intPitch = pitch;
 	intRoll = roll;
 	intYaw = yaw;
-}
-
-void checkAddress() {
-	uint32_t sr1, sr2;
-	sr1 = I2C_SR1(I2C1);
-	while(!(sr1 & I2C_SR1_ADDR)) {
-		sr1 = I2C_SR1(I2C1);
-	}
-
-	//Clear the ADDR sequence by reading SR2.
-	sr2 = I2C_SR2(I2C1);
-	(void) sr2;
 }
 
 int main(void)
