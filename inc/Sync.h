@@ -2,6 +2,8 @@
 #define SYNC_h
 
 #include "./MPU.h"
+#include <stdint.h>
+#include <math.h>
 #include <libopencm3/stm32/i2c.h>
 
 #define MPU_ADDR_SLAVE          0x32
@@ -15,11 +17,13 @@ typedef struct {
     volatile uint8_t offset[5]; // stored in milliseconds (raw data)
     volatile int32_t delay; // converted to time with signed values
     volatile uint8_t mode; // config mode is 1, orientation mode is 2, initially set to 0
+    volatile uint8_t correct[3]; // number times agreed with majority
+    volatile uint8_t totalRuns; // number of comparison cycles ran
 } Time;
 
 void updateTime(Time *timer, int32_t amount);
 void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender);
-void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer);
+void synchronizeOrientation(uint32_t I2C_1, uint32_t I2C_2, MPU_Init *mpu, Time *timer);
 void timeToBytes(uint32_t time, uint8_t*bytes);
 uint32_t bytesToTime(volatile uint8_t *bytes);
 

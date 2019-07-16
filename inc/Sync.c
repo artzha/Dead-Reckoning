@@ -1,6 +1,6 @@
 #include "Sync.h"
 
-/* 
+/*
     Updates timer struct in accordance to interrupt period t, 1 ms
 */
 void updateTime(Time *timer, int32_t amount) {
@@ -16,13 +16,13 @@ void updateTime(Time *timer, int32_t amount) {
         uint16_t temp_millis = timer->millis;
         timer->millis = -(amount%1000) > temp_millis ?
             1000 + (amount%1000) + temp_millis: temp_millis + amount%1000;
-        timer->seconds += -((-amount + temp_millis)/1000); 
+        timer->seconds += -((-amount + temp_millis)/1000);
     }
 }
 
 /*
     rwBuffer requires a very specific data format
-    @rwBuffer - {MILLIS_1, MILLIS_2, 
+    @rwBuffer - {MILLIS_1, MILLIS_2,
         SECONDS_1, SECONDS_2, SECONDS_3, SECONDS_4}
     @sender - Master is indicated with 1 and slave is indicated with a zero
 */
@@ -42,7 +42,7 @@ void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender) {
         uint16_t temp_millis    = time_store[0]<<8|time_store[1];
         uint32_t temp_seconds   = time_store[2]<<24|time_store[3]<<16|
                                 time_store[4]<<8|time_store[5];
-        
+
         int16_t offset_millis   = temp_millis - timer->millis;
         int32_t offset_seconds  = temp_seconds - timer->seconds;
         int32_t offset_total    = offset_millis + offset_seconds*1000;
@@ -69,7 +69,7 @@ void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender) {
         int32_t delay = timer->millis + timer->seconds*1000.0;
         delay = (delay - slave_time)/2.0;
         timer->delay = delay;
-        
+
         /* Send newly calculated transimission time, including sign */
         uint8_t delay_bytes[5];
         timeToBytes(delay, delay_bytes+1);
@@ -78,37 +78,80 @@ void synchronizeControllers(uint32_t I2C_x, Time *timer, uint8_t sender) {
     }
 }
 
-void synchronizeOrientation(uint32_t I2C_x, MPU_Init *mpu, Time *timer) {
+void synchronizeOrientation(uint32_t I2C_1, uint32_t I2C_2, MPU_Init *mpu, Time *timer) {
     /* Store 4 bytes for pitch, roll, and yaw respectively */
-    float pitch, roll, yaw;
-    uint8_t orientation[15];
+    float average[3]; // stores average of pitch, roll, and yaw for current cycle
+    float pitch[2], roll[2], yaw[2];
+    uint8_t orientation_slave1[15];
+    uint8_t orientation_slave2[15];
     /* Request pitch, roll, and yaw from slave */
-    i2c_transfer7(I2C_x, MPU_ADDR_SLAVE, orientation, 0, orientation, 15);
+    i2c_transfer7(I2C_1, MPU_ADDR_SLAVE, orientation_slave1, 0, orientation_slave1, 15);
+    i2c_transfer7(I2C_2, MPU_ADDR_SLAVE, orientation_slave2, 0, orientation_slave2, 15);
     int i = 0;
     while(i < 3) {
-        uint8_t sign = orientation[5*i];
-        float measurement = orientation[(5*i)+1]<<24 | orientation[(5*i)+2]<<16 |
-                                orientation[(5*i)+3]<<8 | orientation[(5*i)+4];
+        uint8_t sign_1 = orientation_slave1[5*i];
+        float measurement_1 = orientation_slave1[(5*i)+1]<<24 | orientation_slave1[(5*i)+2]<<16 |
+                                orientation_slave1[(5*i)+3]<<8 | orientation_slave1[(5*i)+4];
+
+        uint8_t sign_2 = orientation_slave2[5*i];
+        float measurement_2 = orientation_slave2[(5*i)+1]<<24 | orientation_slave2[(5*i)+2]<<16 |
+                                orientation_slave2[(5*i)+3]<<8 | orientation_slave2[(5*i)+4];
         /* Normalize and convert measurement to float */
-        measurement /= 1000.0;
-        measurement = sign==0 ? measurement*(-1.0) : measurement;
+        measurement_1 /= 1000.0;
+        measurement_1 = sign==0 ? measurement_1*(-1.0) : measurement_1;
+
+        measurement_2 /= 1000.0;
+        measurement_2 = sign==0 ? measurement_2*(-1.0) : measurement_2;
         switch(i) {
             case 0:
-                pitch = measurement;
+                pitch[0] = measurement_1;
+                pitch[1] = measurement_2;
+                average[i] = (pitch[0] + pitch[1] + mpu.pitch)/3.0;
                 break;
-            case 1: 
-                roll = measurement;
+            case 1:
+                roll[0] = measurement_1;
+                roll[1] = measurement_2;
+                average[i] = (roll[0] + roll[1] + mpu.roll)/3.0;
                 break;
             case 2:
-                yaw = measurement;
+                yaw[0] = measurement_1;
+                yaw[1] = measurement_2;
+                average[i] = (yaw[0] + yaw[1] + mpu.yaw)/3.0;
                 break;
             default:
                 break;
         }
         i++;
     }
-    
-    /* Compare slave calculations to self */
+
+    /* Default To Byzantine Generals Algorithm */
+    timer.totalRuns++;
+    // Calculate Standard Deviations of Runs To Use For determining correctness
+    // outer loop for pitch, roll, yaw
+    i = 0;
+    while(i < 3) {
+        float stdDev = 0;
+        switch(i) {
+            case 0:
+                // save pitch vars here and calculate stdDev
+            case 1:
+
+            case 2:
+
+            default:
+                break;
+        }
+
+        // inner loop for determining each uC's correctness
+        int j = 0;
+        while (j < 3) {
+            // Compare and store each sensors correctness in timer.correct
+            // Truth values in timer.correct should be ANDED together
+            j++;
+        }
+        i++;
+    }
+
 }
 
 void timeToBytes(uint32_t time, uint8_t *bytes) {

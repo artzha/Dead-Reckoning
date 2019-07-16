@@ -9,7 +9,7 @@
 
 volatile float update = 0;
 volatile float numCycles = 0;
-Time timer = {0, 0}; // initialize timer values
+Time timer = {0, 0, {0}, 0, 0, {0}, 0}; // initialize timer values
 
 static void clock_setup(void)
 {
@@ -146,7 +146,7 @@ int main(void)
 	synchronizeControllers(I2C2, &timer, 1);
 
 	static MPU_Init mpu;
-	
+
 	mpuSetup(I2C1, &mpu);
 
 	while (1) {
@@ -159,8 +159,7 @@ int main(void)
 			madgwickQuaternionRefresh(mpu.q, &mpu, mpu.acc, mpu.gyro, mpu.mag);
 			quarternionToEulerAngle(mpu.q, &mpu.pitch, &mpu.yaw, &mpu.roll);
 
-			synchronizeOrientation(I2C1, &mpu, &timer);
-			synchronizeOrientation(I2C2, &mpu, &timer);
+			synchronizeOrientation(I2C1, I2C2, &mpu, &timer);
 		}
 	}
 
