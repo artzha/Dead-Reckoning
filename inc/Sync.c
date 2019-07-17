@@ -124,34 +124,84 @@ void synchronizeOrientation(uint32_t I2C_1, uint32_t I2C_2, MPU_Init *mpu, Time 
         i++;
     }
 
-    /* Default To Byzantine Generals Algorithm */
+    /* Calculate correctness values for weighted and Byzantine decision algorithms */
     timer.totalRuns++;
     // Calculate Standard Deviations of Runs To Use For determining correctness
     // outer loop for pitch, roll, yaw
+    float leastSquares[3];
+    float stdDev[3];
+    leastSquares[0] = (pitch[0]-average[i]) * (pitch[0]-average[i]) +
+            (pitch[1] - average[i]) * (pitch[1] - average[i]) +
+            (mpu.pitch - average[i]) * (mpu.pitch - average[i]);
+    stdDev[0] = sqrtf((1.0/timer.totalRuns)*leastSquares[0]);
+
+    leastSquares[1] = (roll[0]-average[i]) * (roll[0]-average[i]) +
+            (roll[1] - average[i]) * (roll[1] - average[i]) +
+            (mpu.roll - average[i]) * (mpu.roll - average[i]);
+    stdDev[1] = sqrtf((1.0/timer.totalRuns)*leastSquares[1]);
+
+    leastSquares[2] = (yaw[0]-average[i]) * (yaw[0]-average[i]) +
+            (yaw[1] - average[i]) * (yaw[1] - average[i]) +
+            (mpu.yaw - average[i]) * (mpu.yaw - average[i]);
+    stdDev[2] = sqrtf((1.0/timer.totalRuns)*leastSquares[2]);
+
+    /* Update number of times each instrument has been correct */
+    uint8_t isCorrect[3] = {0, 0, 0};
     i = 0;
-    while(i < 3) {
-        float stdDev = 0;
-        switch(i) {
+    while (i < 3) {
+        switch (i) {
             case 0:
-                // save pitch vars here and calculate stdDev
+                if (computeCorrectness(mpu.pitch, mpu.roll, mpu.yaw, average, stdDev)) {
+                    timer.correct[i]++;
+                    isCorrect[i] = 1;
+                }
+                break;
             case 1:
-
+                if (computeCorrectness(pitch[0], roll[0], yaw[0], average, stdDev)) {
+                    timer.correct[i]++;
+                    isCorrect[i] = 1;
+                }
+                break;
             case 2:
-
+                if (computeCorrectness(pitch[1], roll[1], yaw[1], average, stdDev)) {
+                    timer.correct[i]++;
+                    isCorrect[i] = 1;
+                }
+                break;
             default:
                 break;
         }
+    }
 
-        // inner loop for determining each uC's correctness
-        int j = 0;
-        while (j < 3) {
-            // Compare and store each sensors correctness in timer.correct
-            // Truth values in timer.correct should be ANDED together
-            j++;
+    /* TODO Default To Byzantine Generals Algorithm */
+
+}
+
+uint8_t computeCorrectness(float pitch, float roll, float yaw, float *average, float *stdDev) {
+    int i = 0;
+    uint8_t isTrue = 0;
+    while (i < 3) {
+        float measurement;
+        switch (i) {
+            case 0:
+                measurement = pitch;
+                break;
+            case 1:
+                measurement = roll;
+                break;
+            case 2:
+                measurement = yaw;
+                break;
+            default:
+                break;
+        }
+        /* Check that measurement is within +-2 standard deviations */
+        if (measurement > average[i]-2*stdDev[i] && measurement < average[i]+2*stdDev[i]) {
+            isTrue++;
         }
         i++;
     }
-
+    return (isTrue == 3) ? 1 : 0;
 }
 
 void timeToBytes(uint32_t time, uint8_t *bytes) {

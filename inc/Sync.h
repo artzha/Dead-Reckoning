@@ -17,7 +17,7 @@ typedef struct {
     volatile uint8_t offset[5]; // stored in milliseconds (raw data)
     volatile int32_t delay; // converted to time with signed values
     volatile uint8_t mode; // config mode is 1, orientation mode is 2, initially set to 0
-    volatile uint8_t correct[3]; // number times agreed with majority
+    volatile uint8_t correct[3]; // number times agreed with majority master, slave1, slave2
     volatile uint8_t totalRuns; // number of comparison cycles ran
 } Time;
 
