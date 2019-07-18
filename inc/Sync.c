@@ -173,8 +173,81 @@ void synchronizeOrientation(uint32_t I2C_1, uint32_t I2C_2, MPU_Init *mpu, Time 
         }
     }
 
-    /* TODO Default To Byzantine Generals Algorithm */
+    /* Simulates Byzantine Generals Algorithm
+        Note: Hardware limitations on project setup prevented fully connected
+        communication graph necessary for algorithm implementation with one
+        general and two lieutenants
+    */
+    i = 0;
+    uint8_t numCorrect = 0;
+    while(i < 3) {
+        if (isCorrect[i] == 1) {
+            timer.correct[i]++;
+            numCorrect++;
+            switch(i) {
+                case 0:
+                    timer.orientation[0] += mpu.pitch;
+                    timer.orientation[1] += mpu.roll;
+                    timer.orientation[2] += mpu.yaw;
+                    break;
+                case 1:
+                    timer.orientation[0] += pitch[0];
+                    timer.orientation[1] += roll[0];
+                    timer.orientation[2] += yaw[0];
+                    break;
+                case 2:
+                    timer.orientation[0] += pitch[1];
+                    timer.orientation[1] += roll[1];
+                    timer.orientation[2] += yaw[1];
+                    break;
+                default:
+                    break;
+            }
+        }
+        i++;
+    }
+    /* Use majority if majority exists */
+    if (numCorrect*1.0/3.0 > 0.5) {
+        i = 0;
+        while (i < 3) {
+            timer.orientation[i] /= numCorrect;
+            i++;
+        }
+        return;
+    }
+    /* Use Weighted Average Algorithm */
+    float max = 0;
+    int instrument = -1;
+    i = 0;
+    while (i < 3) {
+        if (timer.correct[i]*1.0/timer.totalRuns > max) {
+            max = timer.correct[i]*1.0/timer.totalRuns;
+            instrument = i;
+        }
+        i++;
+    }
 
+    /* Set orientation to whichever sensor had the highest previous accuracy
+        If none are accurate at all, void the orientation update */
+    switch(instrument) {
+        case 0:
+            timer.orientation[0] = mpu.pitch;
+            timer.orientation[1] = mpu.roll;
+            timer.orientation[2] = mpu.yaw;
+            break;
+        case 1:
+            timer.orientation[0] = pitch[0];
+            timer.orientation[1] = roll[0];
+            timer.orientation[2] = yaw[0];
+            break;
+        case 2:
+            timer.orientation[0] = pitch[1];
+            timer.orientation[1] = roll[1];
+            timer.orientation[2] = yaw[1];
+            break;
+        default:
+            break;
+    }
 }
 
 uint8_t computeCorrectness(float pitch, float roll, float yaw, float *average, float *stdDev) {

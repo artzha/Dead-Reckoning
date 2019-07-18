@@ -19,6 +19,7 @@ typedef struct {
     volatile uint8_t mode; // config mode is 1, orientation mode is 2, initially set to 0
     volatile uint8_t correct[3]; // number times agreed with majority master, slave1, slave2
     volatile uint8_t totalRuns; // number of comparison cycles ran
+    volatile float orientation[3]; // stores pitch roll yaw
 } Time;
 
 void updateTime(Time *timer, int32_t amount);
