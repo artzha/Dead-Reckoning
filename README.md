@@ -2,7 +2,9 @@
 
 ## Introduction
 
-This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 micro controller with minimal library abstractions. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer. Multiple sensor fusion and noise adjustment algorithms were tested for accuracy, such as using Madgwick's Quarternion and Kalman Filtering algorithms. In order to add an additional layer of redundancy for mission critical applications, multiple STM32's and accelerometers will run the identical computation synchronously and descrepancies will be resolved using the Byzantine General's Algorithm.
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/FullSytem.jpeg "Full System")
+
+This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 micro controller with minimal library abstractions. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer. Multiple sensor fusion and noise adjustment algorithms were tested for accuracy, such as using Madgwick's Quarternion and Kalman Filtering algorithms. In order to add an additional layer of redundancy for mission critical applications, multiple STM32's and accelerometers will run the identical computation synchronously and descrepancies will be resolved using methods inspired by the Byzantine Generals Algorithm and weighted average polling.
 
 ## Project Overview
 1. I2C Communication
@@ -115,6 +117,25 @@ For this project, I chose to synchronize the clocks for three microcontrollers b
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/syncProtocol1.png "Synchronization Diagram")
 
 This algorithm requires minimal processing power and is relatively simple to implement, making it suitable for applications with smaller microcontrollers. The synchronization goes as follows. After initializing peripherals and I2C communication on the master device, it requests the time from its slave controllers. The slave microcontroller handles this request in an I2C interrupt service function to ensure that the response is sent quickly. In the ISR function, the slave first checks that the I2C `SR1_ADDR` bit is matches its own I2C address. If so, the slave saves the current value to complete the read request. After the master receives the slave time, it computes the difference and writes this offset value to the slave. Upon receiving the message, the slave updates its timer value with this offset. This process is repeated once more to account for the time delay on the I2C line. After the master/slave complete their second handshake time exchange, the slave can now correct for the time delay in the time exchange. Using this process, the time latency between the master and slave devices can be minimized. It is important to note that this method assumes that the time delay is symmetrical between master and slaves.
+
+###Triple Redundancy Polling Algorithms
+
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/polling.png "Polling Diagram")
+
+Redundant systems are commonly used in critical applications that require high tolerance
+for system failures and dependability. While its application are widespread, a few common applications of redundant systems are used in aerospace navigation systems, autonomous transportation, and electrical distribution for power grids. I designed my electrical assembly for use in navigation systems, thus it made sense to implement polling algorithms to ensure high reliability. For this project, I decided to create a simplified version of the Byzantine General's algorithm for general decisions and a weighted average resolution method as backup.
+
+#### Byzantine General Inspiration
+
+Although the Byzantine Generals Algorithm is a popular choice for this application, it would not have worked for my application given that I do not have a way of communicating between the slave devices. Because of this, there is no way of guaranteeing the algorithm's accuracy if there exists more than a single traitor and the master is completely loyal. Therefore, I chose to use the simple majority decision making procedure. Upon receiving orientation calculations from both slaves, the master begins by calculating the average value of all three microcontrollers. To determine each microcontroller's orientation accuracy, the pitch, roll, and yaw values are checked that they are all within 2 standard deviations of the average value. If at least two microcontrollers agree on the same orientation, then the average of the correct values from each device are saved as the most recent orientation determination. This method is suitable for the majority of all discrepancies encountered. Disregarding radiation anomalies, it is unlikely that bit flips will occur on more than one device during each synchronization cycle. However, I used a method of using weighted averages to resolve special cases where two or even all three orientation calculations are vastly different.
+
+#### Weighted Average Percentage Resolution
+
+In the case multiple microcontrollers diverge from each other, the master device stores information of past accuracy for each connected device. More accurately, it stores the number of times each device has stayed within the allowed tolerance and the total number of synchronization processes ran. Oftentimes, the main reason why a device is consistently faulty is due to either software issues or permanently damaged transistors and miscellaneous hardware issues. It could also be due to connection issues between the slave and master. Because of this, it is reasonable to assume that a device that has consistently been faulty will continue to behave in the same way. For this reason, the method of using weighted averages is especially efficient to permanently disregarding information from traitorous devices. Using previous knowledge about each controller's overall accuracy, the algorithm selects the device which holds the highest accuracy as the correct orientation value. However, the selected device's percentage will not be incremented in this situation because we still do not know for certain if this device is truly correct. We can only speculate that this device is more likely to be accurate in comparison to the others. With this, we have now accounted for all discrepancy scenarios.
+
+
+
+
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
