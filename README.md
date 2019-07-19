@@ -1,15 +1,25 @@
 # Position Tracking Algorithms and Synchronized Computations In Embedded Systems
 
-## Introduction
-
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/FullSystem.jpeg "Full System")
 
-This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 micro controller with minimal library abstractions. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer. Multiple sensor fusion and noise adjustment algorithms were tested for accuracy, such as using Madgwick's Quarternion and Kalman Filtering algorithms. In order to add an additional layer of redundancy for mission critical applications, multiple STM32's and accelerometers will run the identical computation synchronously and descrepancies will be resolved using methods inspired by the Byzantine Generals Algorithm and weighted average polling.
+Dead-Reckoning is a repository that can be run on a system of three STM32F103 microcontrollers to determine the user's position and orientation by using sensor fusion algorithms on 9 axis accelerometer data. The intended application of this project is for use on orientation determination for aeronautic navigation systems, particularly in thrust vector autonomous control systems.
+
+I tested my sensor fusion and noise adjustment algorithms for accuracy by comparing them to actual movements of the system in the x, y, and z directions. Sensor fusion is primarily done with Madgwick's Quarternion fusion algorithm. However, this repository additionally contains a basic Kalman Filter algorithm for position tracking as well.
+
+In order to add an additional layer of redundancy for mission critical applications, multiple STM32's and accelerometers will run the identical computation synchronously and discrepancies will be resolved using methods inspired by the Byzantine Generals Algorithm and weighted average polling.
 
 ## Project Overview
 1. I2C Communication
 2. IMU Calibration
 3. Sensor Fusion Implementation
+4. Synchronization Algorithm
+5. Triple Redundancy Polling Algorithms
+
+## Technologies Used
+1. I2C Communication protocol
+2. Low Level Device Register Configuration
+3. GDB - GNU Project Debugger
+4. STM32 Development Guide 
 
 ### I2C Communication
 
@@ -118,7 +128,7 @@ For this project, I chose to synchronize the clocks for three microcontrollers b
 
 This algorithm requires minimal processing power and is relatively simple to implement, making it suitable for applications with smaller microcontrollers. The synchronization goes as follows. After initializing peripherals and I2C communication on the master device, it requests the time from its slave controllers. The slave microcontroller handles this request in an I2C interrupt service function to ensure that the response is sent quickly. In the ISR function, the slave first checks that the I2C `SR1_ADDR` bit is matches its own I2C address. If so, the slave saves the current value to complete the read request. After the master receives the slave time, it computes the difference and writes this offset value to the slave. Upon receiving the message, the slave updates its timer value with this offset. This process is repeated once more to account for the time delay on the I2C line. After the master/slave complete their second handshake time exchange, the slave can now correct for the time delay in the time exchange. Using this process, the time latency between the master and slave devices can be minimized. It is important to note that this method assumes that the time delay is symmetrical between master and slaves.
 
-###Triple Redundancy Polling Algorithms
+### Triple Redundancy Polling Algorithms
 
 ![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/polling.png "Polling Diagram")
 
@@ -133,9 +143,7 @@ Although the Byzantine Generals Algorithm is a popular choice for this applicati
 
 In the case multiple microcontrollers diverge from each other, the master device stores information of past accuracy for each connected device. More accurately, it stores the number of times each device has stayed within the allowed tolerance and the total number of synchronization processes ran. Oftentimes, the main reason why a device is consistently faulty is due to either software issues or permanently damaged transistors and miscellaneous hardware issues. It could also be due to connection issues between the slave and master. Because of this, it is reasonable to assume that a device that has consistently been faulty will continue to behave in the same way. For this reason, the method of using weighted averages is especially efficient to permanently disregarding information from traitorous devices. Using previous knowledge about each controller's overall accuracy, the algorithm selects the device which holds the highest accuracy as the correct orientation value. However, the selected device's percentage will not be incremented in this situation because we still do not know for certain if this device is truly correct. We can only speculate that this device is more likely to be accurate in comparison to the others. With this, we have now accounted for all discrepancy scenarios.
 
-
-
-
+### Project Setup Details
 
 With a working toolchain, all projects can be built from within their project directory.  The `Makefile` file **REQUIRES** modification in order to set the paths to the build tools.
 
@@ -143,8 +151,8 @@ The following tools are used for these projects:
 * [ARM-GCC](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads) compiler toolchain.
 * [stm32flash](https://sourceforge.net/projects/stm32flash/) flash tool using the on-board STM32 serial bootloader over UART.
 * [st-link](https://github.com/texane/stlink) flash tool using an ST-LINK V2 USB programmer.
-* [Official STM32 CMSIS](http://www.st.com/en/embedded-software/stm32cube-mcu-packages.html) files as part of their STM32Cube MCU packages.
-* libopencm3 files for a non-optimized implementation of the project with libopencm3
+* [Official LibOpenCM3](https://libopencm3.org/) files as part of the LibOpenCM3 open source library
+* [GNU Debugger](https://www.gnu.org/software/gdb/) listening tool to monitoring and controlling application code during execution
 
 ### Development Hardware
 
@@ -152,22 +160,23 @@ All example projects are using a ["Blue Pill"][blue pill] board as the target ha
 
 ### Common Directories
 
-#### [CMSIS/](CMSIS)
+#### [LibOpenCM3/](libopencm3)
 
-Contains the [Cortex CMSIS](https://developer.arm.com/embedded/cmsis) files needed to build the projects.  These files have been repackaged from the official [STM32 CMSIS](http://www.st.com/en/embedded-software/stm32cube-mcu-packages.html) files.
+Contains the [LibOpenCM3](https://libopencm3.org/) files needed to build the projects.  These files can be downloaded directly from the LibOpenCM3 website.
 
-#### [template/](template)
+#### [src/](src)
 
-The template directory contains the files necessary to start a new STM32F103 project.
+The src directory contains master code that contains most of the features described in the application.
 
-#### [gdb/](gdb)
+#### [inc/](inc)
 
-The gdb directory contains gbd command files used for debugging and flashing.
+The inc directory contains common header files for the MPU9250 9 axis accelerometer used and the timer object for storing synchronization data.
+
+#### [slavex_src/](slavex_src)
+
+slavex_src contains code slave devices used in this project.
 
 [blue pill]: http://wiki.stm32duino.com/index.php?title=Blue_Pill
 
-#### Credits
-A large part of the original Makefile initialization was originally developed by getoffmyhack.
-
 # License
-The libopencm3 is licensed under the GNU Lesser General Public License version 3. All other files not within the libopencm3 directory are lincesed under the 3-Clause BSD license.
+The LibOpenCM3 is licensed under the GNU Lesser General Public License version 3. All other files not within the LibOpenCM3 directory are licensed under the 3-Clause BSD license.
