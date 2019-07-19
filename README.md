@@ -2,7 +2,7 @@
 
 ## Introduction
 
-![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/FullSytem.jpeg "Full System")
+![network structure](https://github.com/KingArthurZ3/Dead-Reckoning/blob/master/rsc/FullSystem.jpeg "Full System")
 
 This repository is a collection of my code projects as I learn the aspects of programming an STM32F103C8 micro controller with minimal library abstractions. The primary code project in this repository implements a dead-reckoning tool to determine the user's position by using a 9 axis accelerometer. Multiple sensor fusion and noise adjustment algorithms were tested for accuracy, such as using Madgwick's Quarternion and Kalman Filtering algorithms. In order to add an additional layer of redundancy for mission critical applications, multiple STM32's and accelerometers will run the identical computation synchronously and descrepancies will be resolved using methods inspired by the Byzantine Generals Algorithm and weighted average polling.
 
