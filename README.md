@@ -17,9 +17,9 @@ In order to add an additional layer of redundancy for mission critical applicati
 
 ## Technologies Used
 1. I2C Communication protocol
-2. Low Level Device Register Configuration
+2. Sigrok Logic Analyzer
 3. GDB - GNU Project Debugger
-4. STM32 Development Guide 
+4. Low Level STM32 Development Guide
 
 ### I2C Communication
 
